@@ -110,12 +110,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
             <span className="material-icons-round text-4xl">dashboard</span>
           </div>
           <div>
-            <h1 className="text-2xl font-display text-white uppercase tracking-tight">Admin Cake Studio</h1>
-            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Configuración Maestra</p>
+            <h1 className="text-2xl font-display text-white uppercase tracking-tight">{config.appTheme.brandName}</h1>
+            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Panel de Control Maestro</p>
           </div>
         </div>
         <button onClick={onExit} className="bg-white text-black px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary hover:text-white transition-all flex items-center gap-2 shadow-2xl border-4 border-slate-800">
-          <span className="material-icons-round text-sm">exit_to_app</span> Salir del Panel
+          <span className="material-icons-round text-sm">exit_to_app</span> Salir
         </button>
       </header>
 
@@ -128,7 +128,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
           { id: 'COLORS', label: 'Colores', icon: 'palette' },
           { id: 'PRICES', label: 'Extras', icon: 'sell' },
           { id: 'PAYMENTS', label: 'Pagos', icon: 'account_balance' },
-          { id: 'SETTINGS', label: 'Ajustes', icon: 'settings' },
+          { id: 'SETTINGS', label: 'Tema / Ajustes', icon: 'settings' },
         ].map(tab => (
           <button
             key={tab.id}
@@ -326,153 +326,49 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
             </div>
           )}
 
-          {/* PAGOS / PAYMENTS */}
-          {activeTab === 'PAYMENTS' && (
-            <div className="space-y-12">
-              <div className="flex flex-col gap-2 border-l-8 border-primary pl-6">
-                <h2 className="text-2xl font-black text-black uppercase tracking-widest">Datos de Pago</h2>
-                <p className="text-xs font-black text-slate-600 uppercase tracking-widest">Información bancaria visible para el cliente</p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border-[6px] border-black space-y-8">
-                  <div className="flex flex-col gap-4">
-                    <label className="text-[10px] font-black text-black uppercase tracking-widest ml-2">Nombre del Banco</label>
-                    <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl p-4 font-black text-black outline-none focus:border-primary transition-all" value={config.paymentDetails.bankName} onChange={(e) => updatePaymentDetails('bankName', e.target.value)} />
-                  </div>
-                  <div className="flex flex-col gap-4">
-                    <label className="text-[10px] font-black text-black uppercase tracking-widest ml-2">Titular de Cuenta</label>
-                    <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl p-4 font-black text-black outline-none focus:border-primary transition-all" value={config.paymentDetails.accountHolder} onChange={(e) => updatePaymentDetails('accountHolder', e.target.value)} />
-                  </div>
-                  <div className="flex flex-col gap-4">
-                    <label className="text-[10px] font-black text-black uppercase tracking-widest ml-2">RIF / ID Fiscal</label>
-                    <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl p-4 font-black text-black outline-none focus:border-primary transition-all" value={config.paymentDetails.taxId} onChange={(e) => updatePaymentDetails('taxId', e.target.value)} />
-                  </div>
-                </div>
-
-                <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border-[6px] border-black space-y-8">
-                  <div className="flex flex-col gap-4">
-                    <label className="text-[10px] font-black text-black uppercase tracking-widest ml-2">Zelle / Correo de Pago</label>
-                    <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl p-4 font-black text-black outline-none focus:border-primary transition-all" value={config.paymentDetails.zelleEmail} onChange={(e) => updatePaymentDetails('zelleEmail', e.target.value)} />
-                  </div>
-                  <div className="flex flex-col gap-4">
-                    <label className="text-[10px] font-black text-black uppercase tracking-widest ml-2">Nota de Tasa de Cambio</label>
-                    <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl p-4 font-black text-black outline-none focus:border-primary transition-all" value={config.paymentDetails.exchangeRateNote} onChange={(e) => updatePaymentDetails('exchangeRateNote', e.target.value)} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* AJUSTES / SETTINGS */}
+          {/* AJUSTES DE TEMA / SETTINGS */}
           {activeTab === 'SETTINGS' && (
             <div className="space-y-12">
               <div className="flex flex-col gap-2 border-l-8 border-primary pl-6">
-                <h2 className="text-2xl font-black text-black uppercase tracking-widest">Ajustes Generales</h2>
-                <p className="text-xs font-black text-slate-600 uppercase tracking-widest">Identidad de marca y contacto</p>
+                <h2 className="text-2xl font-black text-black uppercase tracking-widest">Personalización del Tema</h2>
+                <p className="text-xs font-black text-slate-600 uppercase tracking-widest">Colores del sistema e identidad de marca</p>
               </div>
-              <div className="max-w-2xl bg-white p-12 rounded-[4rem] shadow-2xl border-[6px] border-black space-y-10">
-                <div className="flex flex-col gap-4">
-                  <label className="text-[10px] font-black text-black uppercase tracking-widest ml-2">Nombre de la Marca</label>
-                  <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl p-5 font-black text-black text-xl outline-none focus:border-primary transition-all" value={config.appTheme.brandName} onChange={(e) => updateTheme('brandName', e.target.value)} />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="bg-white p-10 rounded-[4rem] shadow-2xl border-[6px] border-black space-y-10">
+                   <h3 className="text-xl font-display uppercase tracking-widest text-primary border-b-4 border-primary pb-2">Identidad</h3>
+                   <div className="space-y-6">
+                      <div className="flex flex-col gap-4">
+                        <label className="text-[10px] font-black text-black uppercase tracking-widest ml-2">Nombre de la Marca</label>
+                        <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl p-4 font-black text-black outline-none focus:border-primary transition-all" value={config.appTheme.brandName} onChange={(e) => updateTheme('brandName', e.target.value)} />
+                      </div>
+                      <div className="flex flex-col gap-4">
+                        <label className="text-[10px] font-black text-black uppercase tracking-widest ml-2">WhatsApp de Recepción</label>
+                        <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl p-4 font-black text-black outline-none focus:border-primary transition-all" value={config.appTheme.whatsappNumber} onChange={(e) => updateTheme('whatsappNumber', e.target.value)} />
+                      </div>
+                   </div>
                 </div>
-                <div className="flex flex-col gap-4">
-                  <label className="text-[10px] font-black text-black uppercase tracking-widest ml-2">WhatsApp de Recepción (Sin el '+')</label>
-                  <div className="relative">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-400">+</span>
-                    <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl p-5 pl-12 font-black text-black text-xl outline-none focus:border-primary transition-all" value={config.appTheme.whatsappNumber} onChange={(e) => updateTheme('whatsappNumber', e.target.value)} />
-                  </div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase ml-2 italic">Ejemplo: 584241546473</p>
+
+                <div className="bg-white p-10 rounded-[4rem] shadow-2xl border-[6px] border-black space-y-10">
+                   <h3 className="text-xl font-display uppercase tracking-widest text-primary border-b-4 border-primary pb-2">Colores del Sistema</h3>
+                   <div className="grid grid-cols-2 gap-8">
+                      {[
+                        { id: 'primaryColor', label: 'Color Primario' },
+                        { id: 'secondaryColor', label: 'Color Secundario' },
+                        { id: 'backgroundColor', label: 'Fondo General' },
+                        { id: 'surfaceColor', label: 'Color Superficies' },
+                        { id: 'textColor', label: 'Color de Texto' },
+                      ].map(item => (
+                        <div key={item.id} className="flex flex-col items-center gap-3">
+                           <div className="w-16 h-16 rounded-3xl border-4 border-black shadow-md relative overflow-hidden" style={{ backgroundColor: (config.appTheme as any)[item.id] }}>
+                              <input type="color" className="absolute inset-0 opacity-0 cursor-pointer" value={(config.appTheme as any)[item.id]} onChange={(e) => updateTheme(item.id as any, e.target.value)} />
+                           </div>
+                           <span className="text-[9px] font-black uppercase text-center text-slate-700">{item.label}</span>
+                        </div>
+                      ))}
+                   </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* SABORES / FLAVORS */}
-          {activeTab === 'FLAVORS' && (
-            <div className="space-y-16">
-              <section>
-                <div className="flex justify-between items-center mb-8 border-l-8 border-primary pl-6">
-                  <div>
-                    <h2 className="text-2xl font-black text-black uppercase tracking-widest">Sabores de Ponqué</h2>
-                    <p className="text-xs font-black text-slate-600 uppercase tracking-widest">Texturas e imágenes de bizcocho real</p>
-                  </div>
-                  <button onClick={addFlavor} className="bg-black text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-2xl hover:bg-primary transition-colors border-2 border-white/20">Añadir Nuevo</button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  {config.flavors.map(f => (
-                    <div key={f.id} className="bg-white p-8 rounded-[3rem] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] border-4 border-black flex flex-col gap-8 group hover:border-primary transition-all">
-                      <div className="flex items-center gap-8">
-                        <div className="relative w-28 h-28 rounded-[2rem] border-[6px] border-black shadow-inner overflow-hidden shrink-0 bg-slate-100 ring-8 ring-slate-50">
-                          {f.textureUrl ? <img src={f.textureUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full" style={{ backgroundColor: f.color }}></div>}
-                          <input type="color" className="absolute inset-0 opacity-0 cursor-pointer" value={f.color} onChange={(e) => updateFlavor(f.id, 'color', e.target.value)} />
-                        </div>
-                        <div className="flex-1 space-y-6">
-                           <div className="flex flex-col gap-2">
-                              <label className="text-[10px] font-black text-black uppercase ml-1">Sabor del Ponqué</label>
-                              <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl px-5 py-3 text-sm font-black uppercase text-black focus:border-primary focus:bg-white outline-none" value={f.name} onChange={(e) => updateFlavor(f.id, 'name', e.target.value)} />
-                           </div>
-                           <div className="flex items-center gap-4">
-                              <span className="text-xs font-black text-black uppercase">Recargo: $</span>
-                              <input type="number" className="w-24 bg-slate-50 border-4 border-black rounded-xl px-4 py-2 text-sm font-black text-primary" value={f.priceModifier} onChange={(e) => updateFlavor(f.id, 'priceModifier', parseFloat(e.target.value))} />
-                           </div>
-                        </div>
-                        <button onClick={() => removeFlavor(f.id)} className="text-slate-400 hover:text-red-600 p-4 rounded-full hover:bg-red-50 transition-all"><span className="material-icons-round text-4xl">delete</span></button>
-                      </div>
-                      <div className="flex gap-4 pt-2">
-                        <label className="flex-1 bg-black text-white text-xs font-black uppercase tracking-widest py-5 rounded-2xl text-center cursor-pointer hover:bg-primary transition-all shadow-xl border-2 border-white/20">
-                           {f.textureUrl ? 'Reemplazar Foto' : 'Subir Textura Real'}
-                           <input type="file" className="hidden" accept="image/*" onChange={(e) => handleTextureUpload(f.id, 'flavor', e.target.files?.[0] || null)} />
-                        </label>
-                        {f.textureUrl && (
-                          <button onClick={() => updateFlavor(f.id, 'textureUrl', undefined)} className="bg-red-600 text-white text-xs font-black uppercase py-5 px-10 rounded-2xl shadow-xl hover:bg-red-700">Eliminar</button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <div className="flex justify-between items-center mb-8 border-l-8 border-secondary pl-6">
-                  <div>
-                    <h2 className="text-2xl font-black text-black uppercase tracking-widest">Rellenos Disponibles</h2>
-                    <p className="text-xs font-black text-slate-600 uppercase tracking-widest">Configura qué puede llevar el pastel por dentro</p>
-                  </div>
-                  <button onClick={addFilling} className="bg-black text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-2xl hover:bg-secondary hover:text-black transition-all">Añadir Relleno</button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  {config.fillings.map(f => (
-                    <div key={f.id} className="bg-white p-8 rounded-[3rem] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] border-4 border-black flex flex-col gap-8 group hover:border-secondary transition-all">
-                      <div className="flex items-center gap-8">
-                        <div className="relative w-28 h-28 rounded-full border-[6px] border-black shadow-inner overflow-hidden shrink-0 bg-slate-100 ring-8 ring-slate-50">
-                          {f.textureUrl ? <img src={f.textureUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full" style={{ backgroundColor: f.color }}></div>}
-                          <input type="color" className="absolute inset-0 opacity-0 cursor-pointer" value={f.color} onChange={(e) => updateFilling(f.id, 'color', e.target.value)} />
-                        </div>
-                        <div className="flex-1 space-y-6">
-                           <div className="flex flex-col gap-2">
-                              <label className="text-[10px] font-black text-black uppercase ml-1">Nombre del Relleno</label>
-                              <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl px-5 py-3 text-sm font-black uppercase text-black focus:border-secondary focus:bg-white outline-none" value={f.name} onChange={(e) => updateFilling(f.id, 'name', e.target.value)} />
-                           </div>
-                           <div className="flex items-center gap-4">
-                              <span className="text-xs font-black text-black uppercase">Recargo: $</span>
-                              <input type="number" className="w-24 bg-slate-50 border-4 border-black rounded-xl px-4 py-2 text-sm font-black text-black" value={f.priceModifier} onChange={(e) => updateFilling(f.id, 'priceModifier', parseFloat(e.target.value))} />
-                           </div>
-                        </div>
-                        <button onClick={() => removeFilling(f.id)} className="text-slate-400 hover:text-red-600 p-4 rounded-full hover:bg-red-50 transition-all"><span className="material-icons-round text-4xl">delete</span></button>
-                      </div>
-                      <div className="flex gap-4 pt-2">
-                        <label className="flex-1 bg-white text-black text-xs font-black uppercase tracking-widest py-5 rounded-2xl text-center cursor-pointer border-4 border-black hover:bg-black hover:text-white transition-all shadow-xl">
-                           Cargar Foto de Relleno
-                           <input type="file" className="hidden" accept="image/*" onChange={(e) => handleTextureUpload(f.id, 'filling', e.target.files?.[0] || null)} />
-                        </label>
-                        {f.textureUrl && (
-                          <button onClick={() => updateFilling(f.id, 'textureUrl', undefined)} className="bg-red-600 text-white text-xs font-black uppercase py-5 px-10 rounded-2xl shadow-xl hover:bg-red-700">Eliminar</button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
             </div>
           )}
 

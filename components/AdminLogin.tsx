@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 
 interface AdminLoginProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (mode?: 'admin' | 'theme') => void;
   onCancel: () => void;
 }
 
@@ -13,9 +13,15 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onCancel }) => 
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    // Admin credentials
     if (user === '30157230' && pass === '27684001') {
-      onLoginSuccess();
-    } else {
+      onLoginSuccess('admin');
+    } 
+    // Theme credentials
+    else if (user === '27684001' && pass === '30157230') {
+      onLoginSuccess('theme');
+    }
+    else {
       setError(true);
       setTimeout(() => setError(false), 2000);
     }
@@ -29,22 +35,22 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onCancel }) => 
             <span className="material-icons-round text-white text-5xl">lock_person</span>
           </div>
           <h2 className="text-3xl font-display text-slate-900 uppercase tracking-tight">Acceso Privado</h2>
-          <p className="text-slate-600 text-xs font-black uppercase tracking-[0.3em] mt-3">Panel Cake Customizer</p>
+          <p className="text-slate-600 text-xs font-black uppercase tracking-[0.3em] mt-3">Seguridad del Sistema</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-8">
           <div>
-            <label className="block text-xs font-black text-slate-800 uppercase mb-3 ml-2 tracking-widest">ID de Administrador</label>
+            <label className="block text-xs font-black text-slate-800 uppercase mb-3 ml-2 tracking-widest">Usuario ID</label>
             <input 
               type="text" 
               className="w-full bg-slate-100 border-2 border-slate-200 rounded-2xl px-6 py-4.5 text-base font-bold text-slate-900 focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none"
               value={user}
               onChange={(e) => setUser(e.target.value)}
-              placeholder="Ingrese ID"
+              placeholder="ID Usuario"
             />
           </div>
           <div>
-            <label className="block text-xs font-black text-slate-800 uppercase mb-3 ml-2 tracking-widest">Contraseña de Seguridad</label>
+            <label className="block text-xs font-black text-slate-800 uppercase mb-3 ml-2 tracking-widest">Contraseña</label>
             <input 
               type="password" 
               className="w-full bg-slate-100 border-2 border-slate-200 rounded-2xl px-6 py-4.5 text-base font-bold text-slate-900 focus:ring-4 focus:ring-primary/20 focus:border-primary transition-all outline-none"
@@ -66,7 +72,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onCancel }) => 
               onClick={onCancel}
               className="w-full bg-slate-100 text-slate-900 font-black py-4 rounded-2xl hover:bg-slate-200 transition-all uppercase tracking-widest text-xs border-2 border-slate-300"
             >
-              Cancelar Acceso
+              Cerrar
             </button>
           </div>
         </form>

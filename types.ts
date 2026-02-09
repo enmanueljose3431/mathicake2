@@ -57,6 +57,11 @@ export interface PaymentDetails {
 export interface AppTheme {
   brandName: string;
   whatsappNumber: string;
+  primaryColor: string;
+  secondaryColor: string;
+  backgroundColor: string;
+  textColor: string;
+  surfaceColor: string;
 }
 
 export interface AppConfig {

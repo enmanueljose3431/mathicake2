@@ -16,19 +16,17 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('cake_app_config');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (!parsed.paymentDetails) {
-        parsed.paymentDetails = {
-          bankName: "Pastelitos Bank",
-          accountHolder: "Cakes Studio S.A.",
-          zelleEmail: "pagos@cakesstudio.com",
-          taxId: "J-12345678-9",
-          exchangeRateNote: "Trabajamos con Tasa Euro (€)"
-        };
-      }
-      if (!parsed.appTheme) {
+      // Ensure theme defaults if missing
+      if (!parsed.appTheme || !parsed.appTheme.primaryColor) {
         parsed.appTheme = {
-          brandName: "Cake Customizer Studio",
-          whatsappNumber: "584241546473"
+          ...parsed.appTheme,
+          brandName: parsed.appTheme?.brandName || "Cake Customizer Studio",
+          whatsappNumber: parsed.appTheme?.whatsappNumber || "584241546473",
+          primaryColor: "#E31C58",
+          secondaryColor: "#FFEB3B",
+          backgroundColor: "#FFFBF2",
+          textColor: "#000000",
+          surfaceColor: "#FFFFFF"
         };
       }
       return parsed;
@@ -52,10 +50,25 @@ const App: React.FC = () => {
       },
       appTheme: {
         brandName: "Cake Customizer Studio",
-        whatsappNumber: "584241546473"
+        whatsappNumber: "584241546473",
+        primaryColor: "#E31C58",
+        secondaryColor: "#FFEB3B",
+        backgroundColor: "#FFFBF2",
+        textColor: "#000000",
+        surfaceColor: "#FFFFFF"
       }
     };
   });
+
+  // Apply CSS Variables
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--primary-color', config.appTheme.primaryColor);
+    root.style.setProperty('--secondary-color', config.appTheme.secondaryColor);
+    root.style.setProperty('--bg-color', config.appTheme.backgroundColor);
+    root.style.setProperty('--text-color', config.appTheme.textColor);
+    root.style.setProperty('--surface-color', config.appTheme.surfaceColor);
+  }, [config.appTheme]);
 
   const [orders, setOrders] = useState<Order[]>(() => {
     const saved = localStorage.getItem('cake_app_orders');
@@ -151,7 +164,6 @@ const App: React.FC = () => {
         config.colors.find(c => c.hex === hex)?.name || 'Especial'
     ).join(', ');
 
-    // Detalle ultra-descriptivo para el administrador
     const detailedInfo = `Pastel ${state.selectedSize?.diameter}cm (${state.selectedSize?.heightType}). 
       Sabor: ${state.selectedFlavor?.name}. Relleno: ${state.selectedFilling?.id === 'others' ? state.customFilling : state.selectedFilling?.name}. 
       Estilo: ${config.decorations[state.selectedDecoration].label} (${colorNames}). 
@@ -169,14 +181,10 @@ const App: React.FC = () => {
       status: 'PENDING'
     };
 
-    // 1. Guardar en estado de React
     const updatedOrders = [newOrder, ...orders];
     setOrders(updatedOrders);
-    
-    // 2. Persistencia FORZADA en localStorage (para asegurar que se guarde antes de abrir WhatsApp)
     localStorage.setItem('cake_app_orders', JSON.stringify(updatedOrders));
 
-    // 3. Preparar mensaje de WhatsApp
     const message = `🎂 *¡NUEVO PEDIDO DE PASTEL!* 🎂 (Ref: ${newOrder.id})
 
 📍 *TAMAÑO Y COBERTURA*
@@ -209,7 +217,6 @@ const App: React.FC = () => {
     const whatsappNumber = config.appTheme.whatsappNumber;
     window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
 
-    // 4. Reiniciar la app para el siguiente cliente
     setState(prev => ({
       ...prev,
       step: 'SIZE',
@@ -226,7 +233,7 @@ const App: React.FC = () => {
   const exitAdmin = () => setState(prev => ({ ...prev, step: 'SIZE' }));
 
   return (
-    <div className="w-full h-full flex flex-col font-quicksand bg-background-light overflow-hidden">
+    <div className="w-full h-full flex flex-col font-quicksand overflow-hidden">
         {state.step === 'SIZE' && (
           <SizeStep 
             selectedSize={state.selectedSize} 

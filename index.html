@@ -14,16 +14,11 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: "#E31C58",
-                        secondary: "#FFEB3B",
-                        "brand-yellow": "#FDE047",
-                        "brand-pink": "#F43F5E",
-                        "background-light": "#FFFBF2",
-                        "surface-light": "#FFFFFF",
-                        "cake-cream": "#FFFFFF",
-                        "flavor-vanilla": "#F3E5AB",
-                        "flavor-chocolate": "#5D4037",
-                        "flavor-mixed": "#8D6E63",
+                        primary: "var(--primary-color, #E31C58)",
+                        secondary: "var(--secondary-color, #FFEB3B)",
+                        "background-light": "var(--bg-color, #FFFBF2)",
+                        "surface-light": "var(--surface-color, #FFFFFF)",
+                        "black": "var(--text-color, #000000)",
                     },
                     fontFamily: {
                         display: ["'Fredoka One'", "cursive"],
@@ -32,39 +27,28 @@
                         quicksand: ["'Quicksand'", "sans-serif"],
                     },
                     boxShadow: {
-                        'soft': '0 10px 30px -5px rgba(236, 72, 109, 0.15)',
-                        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                        'soft': '0 10px 30px -5px rgba(0, 0, 0, 0.05)',
                         'xl-primary': '0 20px 40px -10px rgba(227, 28, 88, 0.3)',
                     },
-                    animation: {
-                        'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                        'float': 'float 3s ease-in-out infinite',
-                        'slide-up': 'slideUp 0.5s ease-out',
-                    },
-                    keyframes: {
-                        pop: {
-                            '0%': { transform: 'scale(0.9)' },
-                            '100%': { transform: 'scale(1)' },
-                        },
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0)' },
-                            '50%': { transform: 'translateY(-10px)' },
-                        },
-                        slideUp: {
-                            '0%': { transform: 'translateY(20px)', opacity: '0' },
-                            '100%': { transform: 'translateY(0)', opacity: '1' },
-                        }
-                    }
                 },
             },
         };
     </script>
     <style>
+        :root {
+            --primary-color: #E31C58;
+            --secondary-color: #FFEB3B;
+            --bg-color: #FFFBF2;
+            --text-color: #000000;
+            --surface-color: #FFFFFF;
+        }
         html, body, #root {
             height: 100%;
             margin: 0;
             padding: 0;
             overflow: hidden;
+            background-color: var(--bg-color);
+            color: var(--text-color);
         }
         .no-scrollbar::-webkit-scrollbar {
             display: none;
@@ -83,9 +67,6 @@
             background-size: 8px 8px;
             background-position: 0 0, 4px 4px;
         }
-        .custom-shadow-cake {
-            filter: drop-shadow(0 25px 25px rgba(0,0,0,0.15));
-        }
     </style>
 <script type="importmap">
 {
@@ -97,7 +78,7 @@
 }
 </script>
 </head>
-<body class="bg-[#FDF8F0] antialiased">
+<body class="antialiased transition-colors duration-300">
     <div id="root"></div>
 </body>
 </html>

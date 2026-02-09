@@ -11,7 +11,6 @@ interface SizeStepProps {
 }
 
 const SizeStep: React.FC<SizeStepProps> = ({ selectedSize, onSelectSize, onNext, onAdminClick, config }) => {
-  // Extraer diámetros únicos de la configuración dinámica
   const diameters = Array.from(new Set(config.sizes.map(s => s.diameter))).sort((a, b) => a - b);
   const scrollRef = useRef<HTMLDivElement>(null);
   
@@ -40,19 +39,29 @@ const SizeStep: React.FC<SizeStepProps> = ({ selectedSize, onSelectSize, onNext,
 
   return (
     <div className="flex flex-col h-full bg-background-light animate-fadeIn overflow-hidden relative">
-      {/* Botón de Administración Discreto */}
-      <button 
-        onClick={onAdminClick}
-        className="absolute top-4 right-4 z-[60] w-10 h-10 rounded-full bg-white/10 hover:bg-white/50 text-gray-300 hover:text-gray-500 transition-all flex items-center justify-center border border-white/20"
-      >
-        <span className="material-icons-round text-lg">lock</span>
-      </button>
+      {/* Botones de Administración Discretos */}
+      <div className="absolute top-4 right-4 z-[60] flex gap-2">
+        <button 
+          onClick={onAdminClick}
+          title="Personalizar Tema"
+          className="w-10 h-10 rounded-full bg-white/10 hover:bg-primary/50 text-gray-300 hover:text-white transition-all flex items-center justify-center border border-white/20 shadow-md backdrop-blur-md"
+        >
+          <span className="material-icons-round text-lg">palette</span>
+        </button>
+        <button 
+          onClick={onAdminClick}
+          title="Administración"
+          className="w-10 h-10 rounded-full bg-white/10 hover:bg-slate-900/50 text-gray-300 hover:text-white transition-all flex items-center justify-center border border-white/20 shadow-md backdrop-blur-md"
+        >
+          <span className="material-icons-round text-lg">lock</span>
+        </button>
+      </div>
 
       {/* CABECERA */}
-      <header className="pt-4 pb-2 md:pt-8 md:pb-4 px-4 md:px-8 flex flex-col md:flex-row justify-between items-center z-20 bg-white/95 backdrop-blur-md border-b border-gray-100 shrink-0">
+      <header className="pt-4 pb-2 md:pt-8 md:pb-4 px-4 md:px-8 flex flex-col md:flex-row justify-between items-center z-20 bg-surface-light/95 backdrop-blur-md border-b border-gray-100 shrink-0">
         <div className="text-center md:text-left mb-3 md:mb-0">
           <span className="bg-primary/10 text-primary text-[9px] md:text-[10px] font-black px-3 py-0.5 md:py-1 rounded-full uppercase tracking-widest mb-1 inline-block">Paso 1: Dimensión</span>
-          <h1 className="font-display text-2xl md:text-4xl text-gray-900 leading-tight">ELIGE EL TAMAÑO</h1>
+          <h1 className="font-display text-2xl md:text-4xl text-black leading-tight uppercase tracking-tight">{config.appTheme.brandName}</h1>
         </div>
         
         <div className="bg-gray-100 p-1 rounded-xl md:rounded-2xl flex gap-1 border border-gray-200 min-w-[240px] md:min-w-[260px]">
@@ -74,16 +83,13 @@ const SizeStep: React.FC<SizeStepProps> = ({ selectedSize, onSelectSize, onNext,
       </header>
 
       {/* ÁREA CENTRAL */}
-      <main className="flex-1 flex flex-col relative overflow-hidden bg-gradient-to-b from-white to-background-light min-h-0">
+      <main className="flex-1 flex flex-col relative overflow-hidden bg-gradient-to-b from-surface-light to-background-light min-h-0">
         <div className="absolute inset-x-0 bottom-36 md:bottom-44 flex justify-center pointer-events-none opacity-20 transition-opacity z-0">
             <div className="flex flex-col items-center">
                 <div className="w-10 h-16 md:w-14 md:h-24 bg-gray-400 rounded-lg relative border-2 border-gray-300 shadow-sm">
                     <div className="absolute top-1 left-2 right-2 h-1 bg-gray-300 rounded-full opacity-50"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                       <span className="text-[6px] md:text-[7px] font-black text-gray-100 uppercase rotate-90">12 cm</span>
-                    </div>
                 </div>
-                <span className="text-[8px] md:text-[9px] font-black mt-1 md:mt-2 text-gray-400 uppercase tracking-widest">Soda Ref.</span>
+                <span className="text-[8px] md:text-[9px] font-black mt-1 md:mt-2 text-gray-400 uppercase tracking-widest">Referencia</span>
             </div>
         </div>
 
@@ -122,19 +128,19 @@ const SizeStep: React.FC<SizeStepProps> = ({ selectedSize, onSelectSize, onNext,
                     viewBox={`0 0 ${cakeWidth} ${cakeHeight + 40}`} 
                     width={cakeWidth} 
                     height={cakeHeight + 40}
-                    className={`transition-all duration-500 ${isSelected ? 'drop-shadow-[0_15px_15px_rgba(227,28,88,0.25)]' : 'drop-shadow-lg'}`}
+                    className={`transition-all duration-500 ${isSelected ? 'drop-shadow-[0_15px_15px_rgba(var(--primary-color-rgb),0.25)]' : 'drop-shadow-lg'}`}
                   >
                     <ellipse cx={cakeWidth/2} cy={cakeHeight + 20} rx={cakeWidth/2} ry="10" fill="rgba(0,0,0,0.08)" />
                     <path 
                       d={`M0 20 L0 ${cakeHeight} Q${cakeWidth/2} ${cakeHeight + 20} ${cakeWidth} ${cakeHeight} L${cakeWidth} 20`} 
-                      fill={currentHeight === 'TALL' ? (isSelected ? '#E31C58' : '#F472B6') : (isSelected ? '#FDD835' : '#FEF08A')} 
+                      fill={currentHeight === 'TALL' ? (isSelected ? 'var(--primary-color)' : '#F472B6') : (isSelected ? 'var(--secondary-color)' : '#FEF08A')} 
                     />
                     <ellipse cx={cakeWidth/2} cy="20" rx={cakeWidth/2} ry="15" fill={isSelected ? "#FFF" : "#FAFAFA"} stroke="rgba(0,0,0,0.1)" strokeWidth="1" />
                     <text 
                       x="50%" 
                       y={cakeHeight/2 + 25} 
                       textAnchor="middle" 
-                      className={`font-display text-2xl md:text-4xl transition-all duration-500 pointer-events-none ${isSelected ? (currentHeight === 'TALL' ? 'fill-white' : 'fill-gray-800') : 'fill-gray-400 opacity-60'}`}
+                      className={`font-display text-2xl md:text-4xl transition-all duration-500 pointer-events-none ${isSelected ? (currentHeight === 'TALL' ? 'fill-white' : 'fill-black') : 'fill-gray-400 opacity-60'}`}
                     >
                       {d}
                     </text>
@@ -142,7 +148,7 @@ const SizeStep: React.FC<SizeStepProps> = ({ selectedSize, onSelectSize, onNext,
                 </div>
 
                 <div className={`mt-4 md:mt-6 flex flex-col items-center gap-0.5 md:gap-1 transition-all duration-500 ${isSelected ? 'opacity-100 translate-y-0 scale-100' : 'opacity-60 translate-y-2 scale-90'}`}>
-                  <div className={`font-display text-3xl md:text-5xl tracking-tighter ${isSelected ? 'text-gray-900' : 'text-gray-400'}`}>{d}cm</div>
+                  <div className={`font-display text-3xl md:text-5xl tracking-tighter ${isSelected ? 'text-black' : 'text-gray-400'}`}>{d}cm</div>
                   <div className={`text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] px-3 md:px-4 py-0.5 rounded-full ${isSelected ? 'bg-primary/5 text-primary border border-primary/10' : 'bg-gray-100 text-gray-400 border border-transparent'}`}>
                     Diámetro
                   </div>
@@ -154,13 +160,13 @@ const SizeStep: React.FC<SizeStepProps> = ({ selectedSize, onSelectSize, onNext,
       </main>
 
       {/* FOOTER */}
-      <footer className="bg-white p-4 md:p-8 z-50 shadow-[0_-15px_30px_rgba(0,0,0,0.05)] rounded-t-[2.5rem] md:rounded-t-[3rem] border-t border-gray-100 shrink-0">
+      <footer className="bg-surface-light p-4 md:p-8 z-50 shadow-[0_-15px_30px_rgba(0,0,0,0.05)] rounded-t-[2.5rem] md:rounded-t-[3rem] border-t border-gray-100 shrink-0">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
           <div className="flex flex-wrap justify-center md:justify-start items-center gap-6 md:gap-8">
             <div className="flex flex-col text-center md:text-left">
               <span className="text-[8px] md:text-[9px] text-gray-400 font-black uppercase tracking-widest mb-0.5">Seleccionado</span>
               <div className="flex items-baseline justify-center md:justify-start gap-2">
-                <span className="text-2xl md:text-3xl font-display text-gray-900">{currentDiameter}cm</span>
+                <span className="text-2xl md:text-3xl font-display text-black">{currentDiameter}cm</span>
                 <span className="text-[9px] md:text-[10px] font-black text-primary uppercase bg-primary/5 px-2.5 md:px-3 py-0.5 rounded-lg border border-primary/10">
                   {currentCakeData?.portions || 'N/A'}
                 </span>
@@ -174,9 +180,9 @@ const SizeStep: React.FC<SizeStepProps> = ({ selectedSize, onSelectSize, onNext,
           </div>
           <button 
             onClick={onNext}
-            className="w-full md:w-auto bg-primary hover:bg-rose-600 text-white font-black py-3.5 md:py-4 px-10 md:px-12 rounded-[1.5rem] md:rounded-[2rem] shadow-xl-primary transition-all active:scale-[0.98] flex items-center justify-center gap-3 md:gap-4 group text-xs md:text-sm"
+            className="w-full md:w-auto bg-primary hover:opacity-90 text-white font-black py-3.5 md:py-4 px-10 md:px-12 rounded-[1.5rem] md:rounded-[2rem] shadow-xl-primary transition-all active:scale-[0.98] flex items-center justify-center gap-3 md:gap-4 group text-xs md:text-sm"
           >
-            <span className="uppercase tracking-[0.15em] md:tracking-[0.2em]">Siguiente: Sabores</span>
+            <span className="uppercase tracking-[0.15em] md:tracking-[0.2em]">Personalizar Pastel</span>
             <span className="material-icons-round text-lg md:text-xl group-hover:translate-x-2 transition-transform">arrow_forward</span>
           </button>
         </div>
