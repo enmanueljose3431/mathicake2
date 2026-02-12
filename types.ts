@@ -17,6 +17,7 @@ export interface CakeSize {
   heightType: HeightType;
   portions: string;
   basePrice: number;
+  costMultiplier: number; // Factor para multiplicar los costos de extras (sabores, rellenos, etc)
 }
 
 export interface Flavor {

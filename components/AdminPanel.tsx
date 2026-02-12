@@ -33,7 +33,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
   };
 
   const addSize = () => {
-    const newSize: CakeSize = { id: `new_${Date.now()}`, diameter: 14, heightType: 'SHORT', portions: '8 Porciones', basePrice: 20 };
+    const newSize: CakeSize = { id: `new_${Date.now()}`, diameter: 14, heightType: 'SHORT', portions: '8 Porciones', basePrice: 20, costMultiplier: 1.0 };
     onUpdateConfig({ ...config, sizes: [...config.sizes, newSize] });
   };
 
@@ -150,7 +150,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
               <div className="flex justify-between items-center border-l-8 border-primary pl-6">
                 <div>
                   <h2 className="text-2xl font-black text-black uppercase tracking-widest">Moldes y Tamaños</h2>
-                  <p className="text-xs font-black text-slate-600 uppercase tracking-widest">Gestiona diámetros, alturas y precios base</p>
+                  <p className="text-xs font-black text-slate-600 uppercase tracking-widest">Gestiona diámetros, alturas y factores de costo</p>
                 </div>
                 <button onClick={addSize} className="bg-black text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest border-2 border-white/20 hover:bg-primary transition-all shadow-xl">Añadir Molde</button>
               </div>
@@ -173,9 +173,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
                         </select>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-black uppercase ml-1">Etiqueta de Porciones</label>
-                      <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl p-3 font-black text-black" value={s.portions} onChange={(e) => updateSize(s.id, 'portions', e.target.value)} />
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="space-y-2">
+                        <label className="text-[10px] font-black text-black uppercase ml-1">Factor Insumos</label>
+                        <input type="number" step="0.1" className="w-full bg-slate-100 border-4 border-black rounded-2xl p-3 font-black text-primary" value={s.costMultiplier} onChange={(e) => updateSize(s.id, 'costMultiplier', parseFloat(e.target.value))} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-black uppercase ml-1">Porciones</label>
+                        <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl p-3 font-black text-black" value={s.portions} onChange={(e) => updateSize(s.id, 'portions', e.target.value)} />
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-black uppercase ml-1">Precio Base ($)</label>
@@ -187,6 +193,83 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* SABORES / FLAVORS (RESTAURADO) */}
+          {activeTab === 'FLAVORS' && (
+            <div className="space-y-16">
+              <section>
+                <div className="flex justify-between items-center mb-8 border-l-8 border-primary pl-6">
+                  <div>
+                    <h2 className="text-2xl font-black text-black uppercase tracking-widest">Sabores de Ponqué</h2>
+                    <p className="text-xs font-black text-slate-600 uppercase tracking-widest">Texturas e imágenes de bizcocho real</p>
+                  </div>
+                  <button onClick={addFlavor} className="bg-black text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-2xl hover:bg-primary transition-colors border-2 border-white/20">Añadir Sabor</button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  {config.flavors.map(f => (
+                    <div key={f.id} className="bg-white p-8 rounded-[3rem] shadow-2xl border-4 border-black flex flex-col gap-8 group hover:border-primary transition-all">
+                      <div className="flex items-center gap-8">
+                        <div className="relative w-28 h-28 rounded-[2rem] border-[6px] border-black shadow-inner overflow-hidden shrink-0 bg-slate-100 ring-8 ring-slate-50">
+                          {f.textureUrl ? <img src={f.textureUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full" style={{ backgroundColor: f.color }}></div>}
+                          <input type="color" className="absolute inset-0 opacity-0 cursor-pointer" value={f.color} onChange={(e) => updateFlavor(f.id, 'color', e.target.value)} />
+                        </div>
+                        <div className="flex-1 space-y-6">
+                           <div className="flex flex-col gap-2">
+                              <label className="text-[10px] font-black text-black uppercase ml-1">Nombre</label>
+                              <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl px-5 py-3 text-sm font-black uppercase text-black" value={f.name} onChange={(e) => updateFlavor(f.id, 'name', e.target.value)} />
+                           </div>
+                           <div className="flex items-center gap-4">
+                              <span className="text-xs font-black text-black uppercase">Recargo: $</span>
+                              <input type="number" className="w-24 bg-slate-50 border-4 border-black rounded-xl px-4 py-2 text-sm font-black text-primary" value={f.priceModifier} onChange={(e) => updateFlavor(f.id, 'priceModifier', parseFloat(e.target.value))} />
+                           </div>
+                        </div>
+                        <button onClick={() => removeFlavor(f.id)} className="text-slate-400 hover:text-red-600 p-4 rounded-full transition-all"><span className="material-icons-round text-4xl">delete</span></button>
+                      </div>
+                      <div className="flex gap-4 pt-2">
+                        <label className="flex-1 bg-black text-white text-xs font-black uppercase tracking-widest py-5 rounded-2xl text-center cursor-pointer hover:bg-primary transition-all shadow-xl border-2 border-white/20">
+                           {f.textureUrl ? 'Cambiar Foto' : 'Cargar Textura'}
+                           <input type="file" className="hidden" accept="image/*" onChange={(e) => handleTextureUpload(f.id, 'flavor', e.target.files?.[0] || null)} />
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section>
+                <div className="flex justify-between items-center mb-8 border-l-8 border-secondary pl-6">
+                  <div>
+                    <h2 className="text-2xl font-black text-black uppercase tracking-widest">Rellenos Disponibles</h2>
+                    <p className="text-xs font-black text-slate-600 uppercase tracking-widest">Configura las opciones de relleno interno</p>
+                  </div>
+                  <button onClick={addFilling} className="bg-black text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-2xl hover:bg-secondary hover:text-black transition-all">Añadir Relleno</button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  {config.fillings.map(f => (
+                    <div key={f.id} className="bg-white p-8 rounded-[3rem] shadow-2xl border-4 border-black flex flex-col gap-8 group hover:border-secondary transition-all">
+                      <div className="flex items-center gap-8">
+                        <div className="relative w-28 h-28 rounded-full border-[6px] border-black shadow-inner overflow-hidden shrink-0 bg-slate-100 ring-8 ring-slate-50">
+                          {f.textureUrl ? <img src={f.textureUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full" style={{ backgroundColor: f.color }}></div>}
+                          <input type="color" className="absolute inset-0 opacity-0 cursor-pointer" value={f.color} onChange={(e) => updateFilling(f.id, 'color', e.target.value)} />
+                        </div>
+                        <div className="flex-1 space-y-6">
+                           <div className="flex flex-col gap-2">
+                              <label className="text-[10px] font-black text-black uppercase ml-1">Nombre</label>
+                              <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl px-5 py-3 text-sm font-black uppercase text-black" value={f.name} onChange={(e) => updateFilling(f.id, 'name', e.target.value)} />
+                           </div>
+                           <div className="flex items-center gap-4">
+                              <span className="text-xs font-black text-black uppercase">Recargo: $</span>
+                              <input type="number" className="w-24 bg-slate-50 border-4 border-black rounded-xl px-4 py-2 text-sm font-black text-black" value={f.priceModifier} onChange={(e) => updateFilling(f.id, 'priceModifier', parseFloat(e.target.value))} />
+                           </div>
+                        </div>
+                        <button onClick={() => removeFilling(f.id)} className="text-slate-400 hover:text-red-600 p-4 rounded-full transition-all"><span className="material-icons-round text-4xl">delete</span></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
           )}
 
@@ -268,7 +351,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                {/* Toppers */}
                 <div className="bg-white p-10 rounded-[4rem] shadow-2xl border-[6px] border-black space-y-8">
                   <h3 className="text-xl font-display uppercase tracking-widest text-primary border-b-4 border-primary pb-2">Precios Toppers</h3>
                   {Object.keys(config.topperPrices).map(tKey => (
@@ -282,7 +364,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
                   ))}
                 </div>
 
-                {/* Coberturas */}
                 <div className="bg-white p-10 rounded-[4rem] shadow-2xl border-[6px] border-black space-y-8">
                   <h3 className="text-xl font-display uppercase tracking-widest text-primary border-b-4 border-primary pb-2">Recargo Coberturas</h3>
                   {Object.keys(config.coverageSurcharges).map(cKey => (
@@ -295,32 +376,42 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
 
-                {/* Otros recargos */}
-                <div className="bg-white p-10 rounded-[4rem] shadow-2xl border-[6px] border-black space-y-8 md:col-span-2">
-                   <h3 className="text-xl font-display uppercase tracking-widest text-primary border-b-4 border-primary pb-2">Detalles Adicionales</h3>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="flex items-center justify-between gap-6 bg-slate-50 p-6 rounded-3xl border-4 border-black">
-                         <div className="flex flex-col">
-                            <span className="text-xs font-black uppercase text-black">Precio de Esferas</span>
-                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Costo por set de esferas</span>
-                         </div>
-                         <div className="flex items-center gap-3 bg-primary text-white p-3 rounded-xl border-2 border-black shadow-lg">
-                           <span className="font-black">$</span>
-                           <input type="number" className="bg-transparent border-none p-0 font-black text-white w-16 text-center focus:ring-0" value={config.spheresPrice} onChange={(e) => onUpdateConfig({...config, spheresPrice: parseFloat(e.target.value)})} />
-                         </div>
-                      </div>
-                      <div className="flex items-center justify-between gap-6 bg-slate-50 p-6 rounded-3xl border-4 border-black">
-                         <div className="flex flex-col">
-                            <span className="text-xs font-black uppercase text-black">Recargo Colores</span>
-                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Por tonos fuertes/saturados</span>
-                         </div>
-                         <div className="flex items-center gap-3 bg-primary text-white p-3 rounded-xl border-2 border-black shadow-lg">
-                           <span className="font-black">$</span>
-                           <input type="number" className="bg-transparent border-none p-0 font-black text-white w-16 text-center focus:ring-0" value={config.saturatedColorSurcharge} onChange={(e) => onUpdateConfig({...config, saturatedColorSurcharge: parseFloat(e.target.value)})} />
-                         </div>
-                      </div>
-                   </div>
+          {/* PAGOS / PAYMENTS (RESTAURADO) */}
+          {activeTab === 'PAYMENTS' && (
+            <div className="space-y-12">
+              <div className="flex flex-col gap-2 border-l-8 border-primary pl-6">
+                <h2 className="text-2xl font-black text-black uppercase tracking-widest">Información de Pago</h2>
+                <p className="text-xs font-black text-slate-600 uppercase tracking-widest">Datos bancarios visibles para el cliente en el checkout</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border-[6px] border-black space-y-8">
+                  <div className="flex flex-col gap-4">
+                    <label className="text-[10px] font-black text-black uppercase tracking-widest ml-2">Nombre del Banco</label>
+                    <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl p-4 font-black text-black outline-none focus:border-primary transition-all" value={config.paymentDetails.bankName} onChange={(e) => updatePaymentDetails('bankName', e.target.value)} />
+                  </div>
+                  <div className="flex flex-col gap-4">
+                    <label className="text-[10px] font-black text-black uppercase tracking-widest ml-2">Titular de Cuenta</label>
+                    <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl p-4 font-black text-black outline-none focus:border-primary transition-all" value={config.paymentDetails.accountHolder} onChange={(e) => updatePaymentDetails('accountHolder', e.target.value)} />
+                  </div>
+                  <div className="flex flex-col gap-4">
+                    <label className="text-[10px] font-black text-black uppercase tracking-widest ml-2">RIF / ID Fiscal</label>
+                    <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl p-4 font-black text-black outline-none focus:border-primary transition-all" value={config.paymentDetails.taxId} onChange={(e) => updatePaymentDetails('taxId', e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="bg-white p-10 rounded-[3.5rem] shadow-2xl border-[6px] border-black space-y-8">
+                  <div className="flex flex-col gap-4">
+                    <label className="text-[10px] font-black text-black uppercase tracking-widest ml-2">Zelle / Correo de Pago</label>
+                    <input type="text" className="w-full bg-slate-50 border-4 border-black rounded-2xl p-4 font-black text-black outline-none focus:border-primary transition-all" value={config.paymentDetails.zelleEmail} onChange={(e) => updatePaymentDetails('zelleEmail', e.target.value)} />
+                  </div>
+                  <div className="flex flex-col gap-4">
+                    <label className="text-[10px] font-black text-black uppercase tracking-widest ml-2">Nota de Tasa de Cambio</label>
+                    <textarea className="w-full bg-slate-50 border-4 border-black rounded-2xl p-4 font-black text-black outline-none focus:border-primary transition-all h-32" value={config.paymentDetails.exchangeRateNote} onChange={(e) => updatePaymentDetails('exchangeRateNote', e.target.value)} />
+                  </div>
                 </div>
               </div>
             </div>

@@ -16,7 +16,6 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('cake_app_config');
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Ensure theme defaults if missing
       if (!parsed.appTheme || !parsed.appTheme.primaryColor) {
         parsed.appTheme = {
           ...parsed.appTheme,
@@ -60,7 +59,6 @@ const App: React.FC = () => {
     };
   });
 
-  // Apply CSS Variables
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty('--primary-color', config.appTheme.primaryColor);
@@ -119,19 +117,24 @@ const App: React.FC = () => {
     const spheres = partial.hasSpheres !== undefined ? partial.hasSpheres : state.hasSpheres;
     const currentColors = partial.cakeColors || state.cakeColors;
     
+    // El multiplicador escala los costos extras según el tamaño físico del pastel
+    const factor = size?.costMultiplier || 1.0;
+
     const base = size?.basePrice || 0;
-    const fMod = flavor?.priceModifier || 0;
-    const fillMod = filling?.priceModifier || 0;
-    const decorMod = config.decorations[decorId]?.priceModifier || 0;
+    const fMod = (flavor?.priceModifier || 0) * factor;
+    const fillMod = (filling?.priceModifier || 0) * factor;
+    const decorMod = (config.decorations[decorId]?.priceModifier || 0) * factor;
+    const coverageMod = (config.coverageSurcharges[coverage] || 0) * factor;
+    
+    // Toppers se mantienen estáticos usualmente (precio por pieza)
     const topperMod = config.topperPrices[topper] || 0;
-    const spheresMod = spheres ? config.spheresPrice : 0;
+    const spheresMod = spheres ? (config.spheresPrice * factor) : 0;
     
     let colorSurcharge = 0;
     const hasSaturated = currentColors.some(hex => 
         config.colors.find(c => c.hex === hex)?.isSaturated
     );
-    if (hasSaturated) colorSurcharge = config.saturatedColorSurcharge;
-    const coverageMod = config.coverageSurcharges[coverage] || 0;
+    if (hasSaturated) colorSurcharge = config.saturatedColorSurcharge * factor;
     
     return base + fMod + fillMod + decorMod + coverageMod + topperMod + spheresMod + colorSurcharge;
   }, [state, config]);
