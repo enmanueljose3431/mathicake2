@@ -1,9 +1,8 @@
 
 import React from 'react';
-import { AppConfig, PaymentStrategy, CakeSize } from '../types';
+import { AppConfig, PaymentStrategy } from '../types';
 
 interface PaymentStepProps {
-  selectedSize: CakeSize | null;
   totalPrice: number;
   paymentReference: string;
   amountBs: string;
@@ -15,7 +14,6 @@ interface PaymentStepProps {
 }
 
 const PaymentStep: React.FC<PaymentStepProps> = ({ 
-  selectedSize,
   totalPrice, 
   paymentReference, 
   amountBs, 
