@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { AppConfig, Order, CakeSize, Flavor, Filling, CakeColor, DecorationStyle, TopperType, CoverageType, PaymentDetails, AppTheme } from '../types';
+import { AppConfig, Order, CakeSize, Flavor, Filling, PaymentDetails, AppTheme } from '../types';
 
 interface AdminPanelProps {
   config: AppConfig;
@@ -220,7 +220,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
               </div>
             )}
 
-            {/* TAB: SABORES (RESTAURADO Y MEJORADO) */}
+            {/* TAB: SABORES */}
             {activeTab === 'FLAVORS' && (
               <div className="space-y-12">
                 
@@ -278,7 +278,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
               </div>
             )}
 
-            {/* TAB: PAGOS (RESTAURADO) */}
+            {/* TAB: PAGOS */}
             {activeTab === 'PAYMENTS' && (
               <div className="space-y-8">
                 <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm max-w-4xl">
@@ -354,7 +354,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
               </div>
             )}
             
-            {/* Otras pestañas (COLORS, DECORATIONS, PRICES) mantienen lógica similar... */}
             {activeTab === 'COLORS' && (
                <div className="space-y-8">
                   <div className="grid grid-cols-2 md:grid-cols-6 gap-6">

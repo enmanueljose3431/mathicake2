@@ -110,6 +110,5 @@ export interface AppState {
   deliveryTime: string;
   coverageType: CoverageType;
   totalPrice: number;
-  customFlavor: string;
   customFilling: string;
 }

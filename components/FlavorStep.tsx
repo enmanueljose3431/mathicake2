@@ -10,8 +10,6 @@ interface FlavorStepProps {
   onNext: () => void;
   onBack: () => void;
   totalPrice: number;
-  customFlavor: string;
-  onCustomFlavorChange: (val: string) => void;
   customFilling: string;
   onCustomFillingChange: (val: string) => void;
   config: AppConfig;
@@ -25,8 +23,6 @@ const FlavorStep: React.FC<FlavorStepProps> = ({
   onNext, 
   onBack,
   totalPrice,
-  customFlavor,
-  onCustomFlavorChange,
   customFilling,
   onCustomFillingChange,
   config
@@ -106,26 +102,21 @@ const FlavorStep: React.FC<FlavorStepProps> = ({
             <h2 className="text-lg font-display font-bold text-primary uppercase mb-6">Vista de Capas</h2>
             <div className="flex justify-center py-2">
               <div className="relative w-44 h-48 flex flex-col shadow-2xl rounded-xl overflow-hidden border-4 border-gray-900">
-                {/* Capa 1 Ponqué */}
                 <div className="h-[20%] w-full relative" style={{ backgroundColor: selectedFlavor?.textureUrl ? undefined : selectedFlavor?.color }}>
-                   {selectedFlavor?.textureUrl && <img src={selectedFlavor.textureUrl} className="w-full h-full object-cover" />}
+                   {selectedFlavor?.textureUrl && <img src={selectedFlavor.textureUrl} alt="textura" className="w-full h-full object-cover" />}
                    <div className="absolute inset-0 bg-black/5"></div>
                 </div>
-                {/* Relleno 1 */}
                 <div className="h-[15%] w-full relative border-y border-black/10" style={{ backgroundColor: selectedFilling?.textureUrl ? undefined : selectedFilling?.color }}>
-                   {selectedFilling?.textureUrl && <img src={selectedFilling.textureUrl} className="w-full h-full object-cover" />}
+                   {selectedFilling?.textureUrl && <img src={selectedFilling.textureUrl} alt="relleno" className="w-full h-full object-cover" />}
                 </div> 
-                {/* Capa 2 Ponqué */}
                 <div className="h-[20%] w-full relative border-b border-black/10" style={{ backgroundColor: selectedFlavor?.textureUrl ? undefined : selectedFlavor?.color }}>
-                   {selectedFlavor?.textureUrl && <img src={selectedFlavor.textureUrl} className="w-full h-full object-cover" />}
+                   {selectedFlavor?.textureUrl && <img src={selectedFlavor.textureUrl} alt="textura" className="w-full h-full object-cover" />}
                 </div>
-                {/* Relleno 2 */}
                 <div className="h-[15%] w-full relative border-b border-black/10" style={{ backgroundColor: selectedFilling?.textureUrl ? undefined : selectedFilling?.color }}>
-                   {selectedFilling?.textureUrl && <img src={selectedFilling.textureUrl} className="w-full h-full object-cover" />}
+                   {selectedFilling?.textureUrl && <img src={selectedFilling.textureUrl} alt="relleno" className="w-full h-full object-cover" />}
                 </div>
-                {/* Capa 3 Ponqué */}
                 <div className="flex-1 w-full relative" style={{ backgroundColor: selectedFlavor?.textureUrl ? undefined : selectedFlavor?.color }}>
-                   {selectedFlavor?.textureUrl && <img src={selectedFlavor.textureUrl} className="w-full h-full object-cover" />}
+                   {selectedFlavor?.textureUrl && <img src={selectedFlavor.textureUrl} alt="textura" className="w-full h-full object-cover" />}
                 </div>
               </div>
             </div>

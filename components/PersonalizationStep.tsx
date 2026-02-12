@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { AppState, CoverageType, DeliveryMethod } from '../types';
+import { AppState, CoverageType } from '../types';
 
 interface PersonalizationStepProps {
   appState: AppState;

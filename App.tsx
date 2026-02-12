@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Step, AppState, CakeSize, Flavor, Filling, AppConfig, Order } from './types';
+import { Step, AppState, AppConfig, Order } from './types';
 import { CAKE_SIZES, FLAVORS, FILLINGS, DECORATIONS, TOPPER_PRICES, SPHERES_PRICE, CAKE_COLORS, SATURATED_COLOR_SURCHARGE } from './constants';
 import SizeStep from './components/SizeStep';
 import FlavorStep from './components/FlavorStep';
@@ -95,7 +95,6 @@ const App: React.FC = () => {
     deliveryTime: '',
     coverageType: 'chantilly',
     totalPrice: 45,
-    customFlavor: '',
     customFilling: '',
   });
 
@@ -117,7 +116,6 @@ const App: React.FC = () => {
     const spheres = partial.hasSpheres !== undefined ? partial.hasSpheres : state.hasSpheres;
     const currentColors = partial.cakeColors || state.cakeColors;
     
-    // El multiplicador escala los costos extras según el tamaño físico del pastel
     const factor = size?.costMultiplier || 1.0;
 
     const base = size?.basePrice || 0;
@@ -126,7 +124,6 @@ const App: React.FC = () => {
     const decorMod = (config.decorations[decorId]?.priceModifier || 0) * factor;
     const coverageMod = (config.coverageSurcharges[coverage] || 0) * factor;
     
-    // Toppers se mantienen estáticos usualmente (precio por pieza)
     const topperMod = config.topperPrices[topper] || 0;
     const spheresMod = spheres ? (config.spheresPrice * factor) : 0;
     
@@ -253,7 +250,7 @@ const App: React.FC = () => {
             onSelectFilling={(fill) => setState(prev => ({ ...prev, selectedFilling: fill, totalPrice: calculateTotal({ selectedFilling: fill }) }))} 
             onNext={nextStep} 
             onBack={prevStep} 
-            onCustomFlavorChange={(v) => setState(s => ({...s, customFlavor: v}))} 
+            // Fix: Removed unused onCustomFlavorChange prop to resolve type error
             onCustomFillingChange={(v) => setState(s => ({...s, customFilling: v}))} 
             config={config}
           />
