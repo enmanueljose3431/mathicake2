@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { AppConfig, Order, CakeSize, Flavor, Filling, PaymentDetails, AppTheme, DecorationStyle } from '../types';
+import { AppConfig, Order, CakeSize, Flavor, Filling, PaymentDetails, AppTheme, DecorationInfo } from '../types';
 
 interface AdminPanelProps {
   config: AppConfig;
@@ -60,10 +60,37 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
     updateConfig({ fillings: config.fillings.filter(f => f.id !== id) });
   };
 
-  const updateDecoration = (id: DecorationStyle, field: 'label' | 'priceModifier', value: any) => {
+  const updateDecoration = (id: string, field: keyof DecorationInfo, value: any) => {
     const newDecorations = { ...config.decorations };
     newDecorations[id] = { ...newDecorations[id], [field]: value };
     updateConfig({ decorations: newDecorations });
+  };
+
+  const addDecoration = () => {
+    const newId = `decor_${Date.now()}`;
+    const newDecorations = { ...config.decorations };
+    newDecorations[newId] = { id: newId, label: 'Nuevo Estilo', priceModifier: 10 };
+    updateConfig({ decorations: newDecorations });
+  };
+
+  const removeDecoration = (id: string) => {
+    const newDecorations = { ...config.decorations };
+    delete newDecorations[id];
+    updateConfig({ decorations: newDecorations });
+  };
+
+  const handleImageUpload = (id: string, type: 'flavor' | 'filling' | 'decoration', e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        if (type === 'flavor') updateFlavor(id, 'textureUrl', base64);
+        if (type === 'filling') updateFilling(id, 'textureUrl', base64);
+        if (type === 'decoration') updateDecoration(id, 'textureUrl', base64);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const updatePaymentField = (field: keyof PaymentDetails, value: string) => {
@@ -237,19 +264,27 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
             {/* TAB: DECORACIONES */}
             {activeTab === 'DECORATIONS' && (
               <div className="space-y-6 md:space-y-10">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+                  <h3 className="text-lg md:text-xl font-black text-slate-800 uppercase tracking-tight border-l-4 border-primary pl-4">Estilos de Decoración</h3>
+                  <button onClick={addDecoration} className="bg-primary text-white px-6 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">Añadir Estilo</button>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8">
-                  {(Object.keys(config.decorations) as DecorationStyle[]).map(id => {
+                  {Object.keys(config.decorations).map(id => {
                     const decor = config.decorations[id];
                     return (
-                      <div key={id} className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4 md:gap-6">
+                      <div key={id} className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4 md:gap-6 relative group">
+                        <button onClick={() => removeDecoration(id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors"><span className="material-icons-round text-sm">delete</span></button>
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-900 rounded-xl flex items-center justify-center text-white shrink-0">
-                             <span className="material-icons-round text-2xl md:text-3xl">
-                                {id === 'liso' ? 'crop_square' : id === 'vintage' ? 'auto_awesome' : id === 'textura' ? 'reorder' : 'opacity'}
-                             </span>
+                          <div className="w-16 h-16 md:w-20 md:h-20 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 shrink-0 border-2 border-dashed border-slate-300 overflow-hidden relative">
+                             {decor.textureUrl ? (
+                               <img src={decor.textureUrl} className="w-full h-full object-cover" />
+                             ) : (
+                               <span className="material-icons-round text-3xl">add_a_photo</span>
+                             )}
+                             <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={(e) => handleImageUpload(id, 'decoration', e)} />
                           </div>
                           <div className="flex-1 min-w-0">
-                             <label className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase">Nombre</label>
+                             <label className="text-[9px] font-black text-slate-400 uppercase">Nombre</label>
                              <input 
                                 type="text" 
                                 className="w-full bg-slate-50 border-none rounded-lg p-2 font-bold text-slate-800 text-xs md:text-sm" 
@@ -259,7 +294,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
                           </div>
                         </div>
                         <div className="space-y-1 md:space-y-2">
-                           <label className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase">Recargo base $</label>
+                           <label className="text-[9px] font-black text-slate-400 uppercase">Recargo base $</label>
                            <input 
                               type="number" 
                               className="w-full bg-slate-900 border-none rounded-lg p-2 md:p-3 font-bold text-white text-base md:text-lg" 
@@ -325,15 +360,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                     {config.flavors.map(f => (
                       <div key={f.id} className="bg-white p-4 md:p-6 rounded-2xl border border-slate-200 flex items-center gap-4 md:gap-6 shadow-sm">
-                        <div className="relative w-12 h-12 md:w-16 md:h-16 rounded-xl overflow-hidden border-2 border-slate-200 shrink-0">
+                        <div className="relative w-12 h-12 md:w-16 md:h-16 rounded-xl overflow-hidden border-2 border-slate-200 shrink-0 flex items-center justify-center bg-slate-100 group">
                           {f.textureUrl ? <img src={f.textureUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full" style={{ backgroundColor: f.color }}></div>}
-                          <input type="color" className="absolute inset-0 opacity-0 cursor-pointer" value={f.color} onChange={(e) => updateFlavor(f.id, 'color', e.target.value)} />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity pointer-events-none">
+                             <span className="material-icons-round text-white text-xs">add_a_photo</span>
+                          </div>
+                          <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={(e) => handleImageUpload(f.id, 'flavor', e)} />
                         </div>
                         <div className="flex-1 space-y-2 md:space-y-4 min-w-0">
-                          <input type="text" className="w-full bg-slate-50 border-none rounded-lg px-3 py-1.5 md:py-2 font-bold text-[11px] md:text-sm uppercase text-slate-800" value={f.name} onChange={(e) => updateFlavor(f.id, 'name', e.target.value)} />
                           <div className="flex items-center gap-2">
-                            <span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase">Recargo: $</span>
-                            <input type="number" className="w-16 md:w-20 bg-slate-50 border-none rounded-lg px-2 py-1 font-bold text-primary text-xs" value={f.priceModifier} onChange={(e) => updateFlavor(f.id, 'priceModifier', parseFloat(e.target.value))} />
+                            <input type="text" className="flex-1 bg-slate-50 border-none rounded-lg px-3 py-1.5 font-bold text-[11px] md:text-sm uppercase text-slate-800" value={f.name} onChange={(e) => updateFlavor(f.id, 'name', e.target.value)} />
+                            <input type="color" className="w-8 h-8 rounded-full border-2 border-white shadow-sm" value={f.color} onChange={(e) => updateFlavor(f.id, 'color', e.target.value)} />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black text-slate-400 uppercase">Recargo: $</span>
+                            <input type="number" className="w-16 bg-slate-50 border-none rounded-lg px-2 py-1 font-bold text-primary text-xs" value={f.priceModifier} onChange={(e) => updateFlavor(f.id, 'priceModifier', parseFloat(e.target.value))} />
                           </div>
                         </div>
                         <button onClick={() => removeFlavor(f.id)} className="text-slate-300 hover:text-red-500 shrink-0"><span className="material-icons-round text-sm">delete</span></button>
@@ -350,15 +391,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                     {config.fillings.map(f => (
                       <div key={f.id} className="bg-white p-4 md:p-6 rounded-2xl border border-slate-200 flex items-center gap-4 shadow-sm">
-                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden border-2 border-slate-100 shrink-0 relative">
-                          <div className="w-full h-full" style={{ backgroundColor: f.color }}></div>
-                          <input type="color" className="absolute inset-0 opacity-0 cursor-pointer" value={f.color} onChange={(e) => updateFilling(f.id, 'color', e.target.value)} />
+                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden border-2 border-slate-100 shrink-0 relative group">
+                          {f.textureUrl ? <img src={f.textureUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full" style={{ backgroundColor: f.color }}></div>}
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity pointer-events-none">
+                             <span className="material-icons-round text-white text-[10px]">add_a_photo</span>
+                          </div>
+                          <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={(e) => handleImageUpload(f.id, 'filling', e)} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <input type="text" className="w-full bg-transparent border-none p-0 font-bold text-[11px] md:text-sm uppercase text-slate-800 mb-0.5 truncate" value={f.name} onChange={(e) => updateFilling(f.id, 'name', e.target.value)} />
+                          <div className="flex items-center gap-1">
+                            <input type="text" className="flex-1 bg-transparent border-none p-0 font-bold text-[11px] uppercase text-slate-800 truncate" value={f.name} onChange={(e) => updateFilling(f.id, 'name', e.target.value)} />
+                            <input type="color" className="w-4 h-4 rounded-full border border-slate-100" value={f.color} onChange={(e) => updateFilling(f.id, 'color', e.target.value)} />
+                          </div>
                           <div className="flex items-center gap-2">
-                             <span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase">+$</span>
-                             <input type="number" className="bg-transparent border-none p-0 font-bold text-[10px] md:text-xs text-slate-600" value={f.priceModifier} onChange={(e) => updateFilling(f.id, 'priceModifier', parseFloat(e.target.value))} />
+                             <span className="text-[8px] font-black text-slate-400 uppercase">+$</span>
+                             <input type="number" className="bg-transparent border-none p-0 font-bold text-[10px] text-slate-600" value={f.priceModifier} onChange={(e) => updateFilling(f.id, 'priceModifier', parseFloat(e.target.value))} />
                           </div>
                         </div>
                         <button onClick={() => removeFilling(f.id)} className="text-slate-300 hover:text-red-500 shrink-0"><span className="material-icons-round text-sm">delete</span></button>

@@ -39,13 +39,14 @@ export interface Filling {
   textureUrl?: string;
 }
 
-export type DecorationStyle = 'liso' | 'vintage' | 'textura' | 'degradado';
+export type DecorationStyle = string; // Cambiado de unión a string para flexibilidad
 export type TopperType = 'none' | 'generic' | 'personalized' | 'plus_pieces';
 
 export interface DecorationInfo {
   id: DecorationStyle;
   label: string;
   priceModifier: number;
+  textureUrl?: string;
 }
 
 export interface PaymentDetails {

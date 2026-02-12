@@ -1,8 +1,9 @@
 
 import React from 'react';
-import { AppConfig, PaymentStrategy } from '../types';
+import { AppConfig, PaymentStrategy, CakeSize } from '../types';
 
 interface PaymentStepProps {
+  selectedSize: CakeSize | null;
   totalPrice: number;
   paymentReference: string;
   amountBs: string;
@@ -14,6 +15,7 @@ interface PaymentStepProps {
 }
 
 const PaymentStep: React.FC<PaymentStepProps> = ({ 
+  selectedSize,
   totalPrice, 
   paymentReference, 
   amountBs, 
@@ -27,9 +29,9 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
   const isComplete = paymentStrategy === 'FULL_ON_DELIVERY' || (paymentReference.length >= 6 && amountBs.length > 0);
 
   return (
-    <div className="flex flex-col h-full bg-background-light animate-fadeIn">
-      <header className="pt-8 pb-4 px-6 flex items-center justify-between z-10 relative">
-        <button onClick={onBack} className="p-2 rounded-full bg-white shadow-soft text-primary transition-transform active:scale-95">
+    <div className="flex flex-col h-full bg-background-light animate-fadeIn overflow-hidden">
+      <header className="pt-6 pb-4 px-6 flex items-center justify-between z-10 relative shrink-0">
+        <button onClick={onBack} className="p-2 rounded-full bg-white shadow-soft text-primary transition-transform active:scale-95 border border-gray-100">
           <span className="material-icons-round">arrow_back</span>
         </button>
         <h1 className="text-xl font-display text-primary tracking-tight uppercase">
@@ -38,7 +40,7 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
         <div className="w-10"></div>
       </header>
 
-      <main className="flex-1 px-6 space-y-6 pt-2 overflow-y-auto no-scrollbar pb-32">
+      <main className="flex-1 px-6 space-y-6 pt-2 overflow-y-auto no-scrollbar pb-10">
         <section className="text-center py-2">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-primary/10 rounded-full mb-3 text-primary">
             <span className="material-icons-round text-3xl">
@@ -145,17 +147,31 @@ const PaymentStep: React.FC<PaymentStepProps> = ({
         )}
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white p-6 rounded-t-[2.5rem] shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-50">
-        <button 
-          onClick={onComplete}
-          disabled={!isComplete}
-          className="w-full bg-primary disabled:opacity-40 disabled:grayscale text-white font-black py-4.5 rounded-2xl shadow-xl shadow-primary/20 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
-        >
-          <span className="text-sm uppercase tracking-widest">
+      {/* FOOTER - Estilo unificado y compacto */}
+      <footer className="bg-surface-light p-5 md:p-8 z-50 shadow-[0_-15px_35px_rgba(0,0,0,0.03)] rounded-t-[2.5rem] md:rounded-t-[3.5rem] border-t border-gray-100 shrink-0">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-5 md:gap-8">
+          <div className="flex flex-wrap justify-center md:justify-start items-center gap-6 md:gap-10">
+            <div className="flex flex-col text-center md:text-left">
+              <span className="text-[9px] md:text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] mb-0.5">Total a Pagar</span>
+              <div className="flex items-baseline justify-center md:justify-start gap-2.5">
+                <span className="text-2xl md:text-4xl font-display text-black">
+                  {paymentStrategy === 'FIFTY_PERCENT' ? `$${depositAmount.toFixed(2)}` : `$${totalPrice.toFixed(2)}`}
+                </span>
+                <span className="text-[9px] md:text-[11px] font-black text-primary uppercase bg-primary/5 px-3 md:px-4 py-0.5 rounded-lg border border-primary/10">
+                  {paymentStrategy === 'FIFTY_PERCENT' ? 'Anticipo 50%' : 'Total'}
+                </span>
+              </div>
+            </div>
+          </div>
+          <button 
+            onClick={onComplete}
+            disabled={!isComplete}
+            className="w-full md:w-auto bg-primary disabled:opacity-40 text-white font-black py-4 md:py-5 px-10 md:px-14 rounded-[1.8rem] md:rounded-[2.5rem] shadow-xl-primary transition-all active:scale-[0.98] flex items-center justify-center gap-3 md:gap-5 group text-[10px] md:text-sm border-2 md:border-4 border-white/10 uppercase tracking-widest"
+          >
             {paymentStrategy === 'FIFTY_PERCENT' ? 'FINALIZAR POR WHATSAPP' : 'CONFIRMAR Y ENVIAR'}
-          </span>
-          <span className="material-icons-round text-lg">forum</span>
-        </button>
+            <span className="material-icons-round text-lg md:text-2xl">forum</span>
+          </button>
+        </div>
       </footer>
     </div>
   );

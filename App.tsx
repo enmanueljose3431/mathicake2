@@ -76,7 +76,7 @@ const App: React.FC = () => {
 
   const [state, setState] = useState<AppState>({
     step: 'SIZE',
-    selectedSize: config.sizes[0],
+    selectedSize: config.sizes[1], // 14 TALL as default
     selectedFlavor: config.flavors[0],
     selectedFilling: config.fillings[1],
     selectedDecoration: 'liso',
@@ -214,17 +214,6 @@ ${paymentSummary}`;
       ...prev,
       step: 'SUCCESS',
       lastOrderId: orderId,
-      theme: '',
-      birthdayName: '',
-      birthdayAge: '',
-      paymentReference: '',
-      amountBs: '',
-      referenceImage: null,
-      customFilling: '',
-      specialRequirements: '',
-      hasSpheres: false,
-      topperType: 'none',
-      paymentStrategy: 'FIFTY_PERCENT',
     }));
   };
 
@@ -232,59 +221,105 @@ ${paymentSummary}`;
   const goToAdminLogin = () => setState(prev => ({ ...prev, step: 'ADMIN_LOGIN' }));
   const exitAdmin = () => setState(prev => ({ ...prev, step: 'SIZE' }));
 
+  const showBrandHeader = !['ADMIN_PANEL'].includes(state.step);
+
   return (
-    <div className="w-full h-full flex flex-col font-quicksand overflow-hidden">
-        {state.step === 'SIZE' && (
-          <SizeStep 
-            selectedSize={state.selectedSize} 
-            onSelectSize={(s) => setState(prev => ({ ...prev, selectedSize: s, totalPrice: calculateTotal({ selectedSize: s }) }))} 
-            onNext={nextStep} 
-            onAdminClick={goToAdminLogin}
-            config={config}
-          />
+    <div className="w-full h-full flex flex-col font-quicksand overflow-hidden bg-background-light">
+        {/* GLOBAL PERSISTENT BRAND HEADER */}
+        {showBrandHeader && (
+          <div className="w-full bg-primary h-16 md:h-20 flex items-center justify-center relative shrink-0 z-[60] shadow-md px-4">
+            <div className="max-w-7xl w-full flex items-center justify-center">
+               {config.appTheme.logoUrl ? (
+                <img src={config.appTheme.logoUrl} className="h-10 md:h-14 object-contain" alt="Logo" />
+              ) : (
+                <h2 className="font-display text-xl md:text-2xl text-white tracking-widest uppercase italic">
+                  MATH <span className="text-secondary">CAKE</span>
+                </h2>
+              )}
+            </div>
+          </div>
         )}
-        {state.step === 'FLAVOR' && (
-          <FlavorStep 
-            {...state} 
-            onSelectFlavor={(f) => setState(prev => ({ ...prev, selectedFlavor: f, totalPrice: calculateTotal({ selectedFlavor: f }) }))} 
-            onSelectFilling={(fill) => setState(prev => ({ ...prev, selectedFilling: fill, totalPrice: calculateTotal({ selectedFilling: fill }) }))} 
-            onNext={nextStep} 
-            onBack={prevStep} 
-            onCustomFillingChange={(v) => setState(s => ({...s, customFilling: v}))} 
-            config={config}
-          />
-        )}
-        {state.step === 'DECORATION' && (
-          <DecorationStep 
-            {...state} 
-            onUpdateDecoration={(d) => setState(prev => ({ ...prev, ...d, totalPrice: calculateTotal(d) }))} 
-            onNext={nextStep} 
-            onBack={prevStep} 
-            config={config}
-          />
-        )}
-        {state.step === 'PERSONALIZATION' && <PersonalizationStep appState={state} onUpdate={(d) => setState(prev => ({ ...prev, ...d, totalPrice: calculateTotal(d) }))} onNext={nextStep} onBack={prevStep} />}
-        {state.step === 'SUMMARY' && <SummaryStep appState={state} onUpdate={(d) => setState(prev => ({ ...prev, ...d }))} onBack={prevStep} onConfirm={nextStep} config={config} />}
-        {state.step === 'PAYMENT' && <PaymentStep {...state} config={config} onUpdatePayment={(d) => setState(s => ({...s, ...d}))} onBack={prevStep} onComplete={handleFinalizeOrder} />}
-        
-        {state.step === 'SUCCESS' && <SuccessStep orderId={state.lastOrderId || ''} onReset={resetToStart} config={config} />}
-        
-        {state.step === 'ADMIN_LOGIN' && (
-          <AdminLogin 
-            onLoginSuccess={() => setState(prev => ({ ...prev, step: 'ADMIN_PANEL' }))} 
-            onCancel={exitAdmin} 
-          />
-        )}
-        
-        {state.step === 'ADMIN_PANEL' && (
-          <AdminPanel 
-            config={config} 
-            onUpdateConfig={setConfig} 
-            orders={orders}
-            onClearOrders={() => setOrders([])}
-            onExit={exitAdmin} 
-          />
-        )}
+
+        <div className="flex-1 overflow-hidden flex flex-col relative">
+          <div className="flex-1 overflow-hidden mx-auto w-full h-full max-w-7xl">
+            {state.step === 'SIZE' && (
+              <SizeStep 
+                selectedSize={state.selectedSize} 
+                onSelectSize={(s) => setState(prev => ({ ...prev, selectedSize: s, totalPrice: calculateTotal({ selectedSize: s }) }))} 
+                onNext={nextStep} 
+                onAdminClick={goToAdminLogin}
+                config={config}
+              />
+            )}
+            {state.step === 'FLAVOR' && (
+              <FlavorStep 
+                {...state} 
+                onSelectFlavor={(f) => setState(prev => ({ ...prev, selectedFlavor: f, totalPrice: calculateTotal({ selectedFlavor: f }) }))} 
+                onSelectFilling={(fill) => setState(prev => ({ ...prev, selectedFilling: fill, totalPrice: calculateTotal({ selectedFilling: fill }) }))} 
+                onNext={nextStep} 
+                onBack={prevStep} 
+                onCustomFillingChange={(v) => setState(s => ({...s, customFilling: v}))} 
+                config={config}
+              />
+            )}
+            {state.step === 'DECORATION' && (
+              <DecorationStep 
+                {...state} 
+                onUpdateDecoration={(d) => setState(prev => ({ ...prev, ...d, totalPrice: calculateTotal(d) }))} 
+                onNext={nextStep} 
+                onBack={prevStep} 
+                config={config}
+              />
+            )}
+            {state.step === 'PERSONALIZATION' && (
+              <PersonalizationStep 
+                appState={state} 
+                onUpdate={(d) => setState(prev => ({ ...prev, ...d, totalPrice: calculateTotal(d) }))} 
+                onNext={nextStep} 
+                onBack={prevStep} 
+              />
+            )}
+            {state.step === 'SUMMARY' && (
+              <SummaryStep 
+                appState={state} 
+                onUpdate={(d) => setState(prev => ({ ...prev, ...d }))} 
+                onBack={prevStep} 
+                onConfirm={nextStep} 
+                config={config} 
+              />
+            )}
+            {state.step === 'PAYMENT' && (
+              <PaymentStep 
+                {...state} 
+                config={config} 
+                onUpdatePayment={(d) => setState(s => ({...s, ...d}))} 
+                onBack={prevStep} 
+                onComplete={handleFinalizeOrder} 
+              />
+            )}
+            
+            {state.step === 'SUCCESS' && <SuccessStep orderId={state.lastOrderId || ''} onReset={resetToStart} config={config} />}
+            
+            {state.step === 'ADMIN_LOGIN' && (
+              <AdminLogin 
+                onLoginSuccess={() => setState(prev => ({ ...prev, step: 'ADMIN_PANEL' }))} 
+                onCancel={exitAdmin} 
+              />
+            )}
+          </div>
+          
+          {state.step === 'ADMIN_PANEL' && (
+            <div className="fixed inset-0 z-[100]">
+              <AdminPanel 
+                config={config} 
+                onUpdateConfig={setConfig} 
+                orders={orders}
+                onClearOrders={() => setOrders([])}
+                onExit={exitAdmin} 
+              />
+            </div>
+          )}
+        </div>
     </div>
   );
 };

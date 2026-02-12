@@ -30,16 +30,16 @@ const SummaryStep: React.FC<SummaryStepProps> = ({ appState, onUpdate, onBack, o
   };
 
   return (
-    <div className="flex flex-col h-full bg-background-light animate-fadeIn">
-      <header className="pt-12 pb-8 px-6 text-center bg-primary rounded-b-[3.5rem] shadow-xl text-white relative shrink-0">
-        <button onClick={onBack} className="absolute left-6 top-10 text-white/80 hover:text-white transition-colors">
-          <span className="material-icons-round">arrow_back</span>
+    <div className="flex flex-col h-full bg-background-light animate-fadeIn overflow-hidden">
+      <header className="pt-6 pb-4 px-6 text-center relative shrink-0">
+        <button onClick={onBack} className="absolute left-6 top-6 text-primary hover:text-rose-600 transition-colors bg-white rounded-full p-2 shadow-sm border border-gray-100">
+          <span className="material-icons-round text-xl">arrow_back</span>
         </button>
-        <h1 className="text-2xl font-display uppercase tracking-widest mb-1">Tu Pedido</h1>
-        <p className="text-white/70 text-[10px] font-bold uppercase tracking-[0.2em]">Resumen de tu obra maestra</p>
+        <h1 className="text-xl font-display uppercase tracking-widest mb-1 text-black">Tu Pedido</h1>
+        <p className="text-gray-400 text-[10px] font-bold uppercase tracking-[0.2em]">Resumen de tu obra maestra</p>
       </header>
 
-      <main className="flex-1 p-6 space-y-6 overflow-y-auto no-scrollbar pb-44">
+      <main className="flex-1 p-6 space-y-6 overflow-y-auto no-scrollbar pb-10">
         {isCustomFilling && (
            <div className="bg-amber-100 border-2 border-amber-300 p-4 rounded-3xl flex items-center gap-3 animate-pulse">
               <span className="material-icons-round text-amber-600">warning_amber</span>
@@ -121,20 +121,36 @@ const SummaryStep: React.FC<SummaryStepProps> = ({ appState, onUpdate, onBack, o
         </div>
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white p-6 rounded-t-[2.5rem] shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-50 flex gap-3">
-        <button 
-          onClick={onBack}
-          className="flex-1 bg-gray-100 text-gray-500 font-black py-4.5 rounded-2xl hover:bg-gray-200 transition-all text-xs uppercase tracking-widest"
-        >
-          Editar
-        </button>
-        <button 
-          onClick={onConfirm}
-          className="flex-[2] bg-primary text-white font-black py-4.5 rounded-2xl shadow-xl shadow-primary/20 flex items-center justify-center gap-2 hover:bg-rose-600 active:scale-95 transition-all text-xs uppercase tracking-widest"
-        >
-          {appState.paymentStrategy === 'FIFTY_PERCENT' ? 'CONFIRMAR PAGO' : 'CONFIRMAR PEDIDO'}
-          <span className="material-icons-round text-base">check_circle</span>
-        </button>
+      {/* FOOTER - Estilo unificado y compacto */}
+      <footer className="bg-surface-light p-5 md:p-8 z-50 shadow-[0_-15px_35px_rgba(0,0,0,0.03)] rounded-t-[2.5rem] md:rounded-t-[3.5rem] border-t border-gray-100 shrink-0">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-5 md:gap-8">
+          <div className="flex flex-wrap justify-center md:justify-start items-center gap-6 md:gap-10">
+            <div className="flex flex-col text-center md:text-left">
+              <span className="text-[9px] md:text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] mb-0.5">Resumen Final</span>
+              <div className="flex items-baseline justify-center md:justify-start gap-2.5">
+                <span className="text-2xl md:text-4xl font-display text-black">{appState.totalPrice.toFixed(2)}$</span>
+                <span className="text-[9px] md:text-[11px] font-black text-primary uppercase bg-primary/5 px-3 md:px-4 py-0.5 rounded-lg border border-primary/10">
+                  {appState.paymentStrategy === 'FIFTY_PERCENT' ? 'A reserva' : 'Contra entrega'}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3 w-full md:w-auto">
+            <button 
+              onClick={onBack}
+              className="flex-1 md:px-8 bg-gray-100 text-gray-500 font-black py-4 md:py-5 rounded-[1.5rem] md:rounded-[1.8rem] hover:bg-gray-200 transition-all text-[10px] uppercase tracking-widest border-2 border-transparent"
+            >
+              Editar
+            </button>
+            <button 
+              onClick={onConfirm}
+              className="flex-[2] md:px-12 bg-primary text-white font-black py-4 md:py-5 rounded-[1.5rem] md:rounded-[1.8rem] shadow-xl-primary flex items-center justify-center gap-2 hover:bg-rose-600 active:scale-95 transition-all text-[10px] uppercase tracking-widest border-2 border-white/10"
+            >
+              Confirmar
+              <span className="material-icons-round text-base">check_circle</span>
+            </button>
+          </div>
+        </div>
       </footer>
     </div>
   );
