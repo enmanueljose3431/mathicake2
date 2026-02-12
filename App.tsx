@@ -8,6 +8,7 @@ import DecorationStep from './components/DecorationStep';
 import PersonalizationStep from './components/PersonalizationStep';
 import SummaryStep from './components/SummaryStep';
 import PaymentStep from './components/PaymentStep';
+import SuccessStep from './components/SuccessStep';
 import AdminLogin from './components/AdminLogin';
 import AdminPanel from './components/AdminPanel';
 
@@ -96,6 +97,7 @@ const App: React.FC = () => {
     coverageType: 'chantilly',
     totalPrice: 45,
     customFilling: '',
+    paymentStrategy: 'FIFTY_PERCENT',
   });
 
   useEffect(() => {
@@ -164,16 +166,24 @@ const App: React.FC = () => {
         config.colors.find(c => c.hex === hex)?.name || 'Especial'
     ).join(', ');
 
-    const detailedInfo = `Pastel ${state.selectedSize?.diameter}cm (${state.selectedSize?.heightType}). 
-      Sabor: ${state.selectedFlavor?.name}. Relleno: ${state.selectedFilling?.id === 'others' ? state.customFilling : state.selectedFilling?.name}. 
-      Estilo: ${config.decorations[state.selectedDecoration].label} (${colorNames}). 
-      Extras: ${state.topperType !== 'none' ? 'Topper '+state.topperType : 'Sin Topper'}${state.hasSpheres ? ', con Esferas' : ''}. 
-      Evento: ${state.theme} p/ ${state.birthdayName}. 
-      Entrega: ${state.deliveryMethod} - ${state.deliveryDate} ${state.deliveryTime}. 
-      Pago Ref: ${state.paymentReference}`;
+    const paymentInfo = state.paymentStrategy === 'FIFTY_PERCENT' 
+      ? `💳 Pago: Anticipo 50% (Ref ${state.paymentReference} - Bs. ${state.amountBs})`
+      : `💵 Pago: 100% Contra Entrega`;
 
+    const detailedInfo = `🎂 PASTEL ${state.selectedSize?.diameter}cm (${state.selectedSize?.heightType})
+🍰 Bizcocho: ${state.selectedFlavor?.name}
+🍦 Relleno: ${state.selectedFilling?.id === 'others' ? state.customFilling : state.selectedFilling?.name}
+✨ Estilo: ${config.decorations[state.selectedDecoration].label}
+🎨 Colores: ${colorNames}
+🎯 Cobertura: ${state.coverageType.toUpperCase()}
+🚀 Extras: ${state.topperType !== 'none' ? 'Topper '+state.topperType : 'Sin Topper'}${state.hasSpheres ? ', con Esferas' : ''}
+🎉 Evento: ${state.theme} p/ ${state.birthdayName} (${state.birthdayAge} años)
+📍 Entrega: ${state.deliveryMethod} - ${state.deliveryDate} ${state.deliveryTime}
+${paymentInfo}`;
+
+    const orderId = Math.random().toString(36).substr(2, 9).toUpperCase();
     const newOrder: Order = {
-      id: Math.random().toString(36).substr(2, 9).toUpperCase(),
+      id: orderId,
       date: new Date().toLocaleString(),
       customerName: state.birthdayName || 'Cliente Web',
       details: detailedInfo,
@@ -181,54 +191,44 @@ const App: React.FC = () => {
       status: 'PENDING'
     };
 
-    const updatedOrders = [newOrder, ...orders];
-    setOrders(updatedOrders);
-    localStorage.setItem('cake_app_orders', JSON.stringify(updatedOrders));
+    setOrders(prev => [newOrder, ...prev]);
+
+    const paymentSummary = state.paymentStrategy === 'FIFTY_PERCENT'
+      ? `💰 *RESUMEN DE PAGO*
+- Total: $${state.totalPrice.toFixed(2)}
+- Anticipo (50%): $${deposit.toFixed(2)}
+- Pendiente: $${deposit.toFixed(2)}`
+      : `💰 *RESUMEN DE PAGO*
+- Total a pagar al recibir: $${state.totalPrice.toFixed(2)}`;
 
     const message = `🎂 *¡NUEVO PEDIDO DE PASTEL!* 🎂 (Ref: ${newOrder.id})
 
-📍 *TAMAÑO Y COBERTURA*
-- Diámetro: ${state.selectedSize?.diameter}cm (${state.selectedSize?.heightType === 'TALL' ? 'Alto' : 'Bajo'})
-- Cobertura: ${state.coverageType.toUpperCase()}
-- Capacidad: ${state.selectedSize?.portions}
+${detailedInfo}
 
-🍰 *SABORES*
-- Bizcocho: ${state.selectedFlavor?.name}
-- Relleno: ${state.selectedFilling?.id === 'others' ? state.customFilling : state.selectedFilling?.name}
-- Estilo: ${config.decorations[state.selectedDecoration].label}
-- Colores: ${colorNames}
-
-✨ *DECORACIÓN EXTRA*
-- Topper: ${state.topperType}
-- Esferas: ${state.hasSpheres ? 'Sí' : 'No'}
-
-🎉 *DATOS DEL EVENTO*
-- Temática: ${state.theme}
-- Para: ${state.birthdayName} (${state.birthdayAge} años)
-- Método: ${state.deliveryMethod}
-- Fecha: ${state.deliveryDate} @ ${state.deliveryTime}
-
-💰 *PAGO*
-- Total: $${state.totalPrice.toFixed(2)}
-- Anticipo (50%): $${deposit.toFixed(2)}
-- Referencia: ${state.paymentReference}
-- Monto en Bs: ${state.amountBs}`;
+${paymentSummary}`;
 
     const whatsappNumber = config.appTheme.whatsappNumber;
     window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
 
     setState(prev => ({
       ...prev,
-      step: 'SIZE',
+      step: 'SUCCESS',
+      lastOrderId: orderId,
       theme: '',
       birthdayName: '',
       birthdayAge: '',
       paymentReference: '',
       amountBs: '',
-      referenceImage: null
+      referenceImage: null,
+      customFilling: '',
+      specialRequirements: '',
+      hasSpheres: false,
+      topperType: 'none',
+      paymentStrategy: 'FIFTY_PERCENT',
     }));
   };
 
+  const resetToStart = () => setState(prev => ({ ...prev, step: 'SIZE' }));
   const goToAdminLogin = () => setState(prev => ({ ...prev, step: 'ADMIN_LOGIN' }));
   const exitAdmin = () => setState(prev => ({ ...prev, step: 'SIZE' }));
 
@@ -250,7 +250,6 @@ const App: React.FC = () => {
             onSelectFilling={(fill) => setState(prev => ({ ...prev, selectedFilling: fill, totalPrice: calculateTotal({ selectedFilling: fill }) }))} 
             onNext={nextStep} 
             onBack={prevStep} 
-            // Fix: Removed unused onCustomFlavorChange prop to resolve type error
             onCustomFillingChange={(v) => setState(s => ({...s, customFilling: v}))} 
             config={config}
           />
@@ -265,8 +264,10 @@ const App: React.FC = () => {
           />
         )}
         {state.step === 'PERSONALIZATION' && <PersonalizationStep appState={state} onUpdate={(d) => setState(prev => ({ ...prev, ...d, totalPrice: calculateTotal(d) }))} onNext={nextStep} onBack={prevStep} />}
-        {state.step === 'SUMMARY' && <SummaryStep appState={state} onBack={prevStep} onConfirm={nextStep} config={config} />}
+        {state.step === 'SUMMARY' && <SummaryStep appState={state} onUpdate={(d) => setState(prev => ({ ...prev, ...d }))} onBack={prevStep} onConfirm={nextStep} config={config} />}
         {state.step === 'PAYMENT' && <PaymentStep {...state} config={config} onUpdatePayment={(d) => setState(s => ({...s, ...d}))} onBack={prevStep} onComplete={handleFinalizeOrder} />}
+        
+        {state.step === 'SUCCESS' && <SuccessStep orderId={state.lastOrderId || ''} onReset={resetToStart} config={config} />}
         
         {state.step === 'ADMIN_LOGIN' && (
           <AdminLogin 

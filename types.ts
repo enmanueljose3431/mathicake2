@@ -1,9 +1,10 @@
 
-export type Step = 'SIZE' | 'FLAVOR' | 'DECORATION' | 'PERSONALIZATION' | 'SUMMARY' | 'PAYMENT' | 'ADMIN_LOGIN' | 'ADMIN_PANEL';
+export type Step = 'SIZE' | 'FLAVOR' | 'DECORATION' | 'PERSONALIZATION' | 'SUMMARY' | 'PAYMENT' | 'SUCCESS' | 'ADMIN_LOGIN' | 'ADMIN_PANEL';
 
 export type HeightType = 'TALL' | 'SHORT';
 export type DeliveryMethod = 'DELIVERY' | 'PICKUP';
 export type CoverageType = 'chantilly' | 'chocolate' | 'arequipe';
+export type PaymentStrategy = 'FIFTY_PERCENT' | 'FULL_ON_DELIVERY';
 
 export interface CakeColor {
   name: string;
@@ -17,7 +18,7 @@ export interface CakeSize {
   heightType: HeightType;
   portions: string;
   basePrice: number;
-  costMultiplier: number; // Factor para multiplicar los costos de extras (sabores, rellenos, etc)
+  costMultiplier: number; 
 }
 
 export interface Flavor {
@@ -57,6 +58,7 @@ export interface PaymentDetails {
 
 export interface AppTheme {
   brandName: string;
+  logoUrl?: string;
   whatsappNumber: string;
   primaryColor: string;
   secondaryColor: string;
@@ -111,4 +113,6 @@ export interface AppState {
   coverageType: CoverageType;
   totalPrice: number;
   customFilling: string;
+  lastOrderId?: string;
+  paymentStrategy: PaymentStrategy;
 }

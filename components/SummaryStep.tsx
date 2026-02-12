@@ -1,16 +1,16 @@
 
 import React from 'react';
-import { AppState, AppConfig } from '../types';
+import { AppState, AppConfig, PaymentStrategy } from '../types';
 
 interface SummaryStepProps {
   appState: AppState;
+  onUpdate: (data: Partial<AppState>) => void;
   onBack: () => void;
   onConfirm: () => void;
-  // Added config to the props to allow access to dynamic color and size definitions
   config: AppConfig;
 }
 
-const SummaryStep: React.FC<SummaryStepProps> = ({ appState, onBack, onConfirm, config }) => {
+const SummaryStep: React.FC<SummaryStepProps> = ({ appState, onUpdate, onBack, onConfirm, config }) => {
   const deposit = appState.totalPrice / 2;
   const isCustomFilling = appState.selectedFilling?.id === 'others';
   
@@ -21,14 +21,17 @@ const SummaryStep: React.FC<SummaryStepProps> = ({ appState, onBack, onConfirm, 
     plus_pieces: 'Topper + Piezas'
   }[appState.topperType];
 
-  // Use dynamic colors from config instead of static constants
   const colorNames = appState.cakeColors.map(hex => 
     config.colors.find(c => c.hex === hex)?.name || 'Personalizado'
   ).join(', ');
 
+  const handleStrategySelect = (strategy: PaymentStrategy) => {
+    onUpdate({ paymentStrategy: strategy });
+  };
+
   return (
     <div className="flex flex-col h-full bg-background-light animate-fadeIn">
-      <header className="pt-12 pb-8 px-6 text-center bg-primary rounded-b-[3.5rem] shadow-xl text-white relative">
+      <header className="pt-12 pb-8 px-6 text-center bg-primary rounded-b-[3.5rem] shadow-xl text-white relative shrink-0">
         <button onClick={onBack} className="absolute left-6 top-10 text-white/80 hover:text-white transition-colors">
           <span className="material-icons-round">arrow_back</span>
         </button>
@@ -36,7 +39,7 @@ const SummaryStep: React.FC<SummaryStepProps> = ({ appState, onBack, onConfirm, 
         <p className="text-white/70 text-[10px] font-bold uppercase tracking-[0.2em]">Resumen de tu obra maestra</p>
       </header>
 
-      <main className="flex-1 p-6 space-y-6 overflow-y-auto no-scrollbar pb-40">
+      <main className="flex-1 p-6 space-y-6 overflow-y-auto no-scrollbar pb-44">
         {isCustomFilling && (
            <div className="bg-amber-100 border-2 border-amber-300 p-4 rounded-3xl flex items-center gap-3 animate-pulse">
               <span className="material-icons-round text-amber-600">warning_amber</span>
@@ -46,6 +49,7 @@ const SummaryStep: React.FC<SummaryStepProps> = ({ appState, onBack, onConfirm, 
            </div>
         )}
 
+        {/* DETALLES DEL PRODUCTO */}
         <div className="bg-white rounded-[2.5rem] p-6 shadow-soft border border-gray-100 divide-y divide-gray-50 space-y-1">
           <div className="py-4 flex flex-col">
             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Básico</span>
@@ -76,15 +80,44 @@ const SummaryStep: React.FC<SummaryStepProps> = ({ appState, onBack, onConfirm, 
           </div>
         </div>
 
+        {/* SELECTOR DE PAGO */}
+        <section className="space-y-4">
+          <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest ml-1">Selecciona método de pago:</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <button 
+              onClick={() => handleStrategySelect('FIFTY_PERCENT')}
+              className={`p-4 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-2 ${appState.paymentStrategy === 'FIFTY_PERCENT' ? 'bg-primary text-white border-primary shadow-lg scale-[1.02]' : 'bg-white text-slate-500 border-slate-100 shadow-sm'}`}
+            >
+              <span className="material-icons-round">percent</span>
+              <span className="text-[10px] font-black uppercase tracking-tight">Pagar 50% Ahora</span>
+            </button>
+            <button 
+              onClick={() => handleStrategySelect('FULL_ON_DELIVERY')}
+              className={`p-4 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-2 ${appState.paymentStrategy === 'FULL_ON_DELIVERY' ? 'bg-primary text-white border-primary shadow-lg scale-[1.02]' : 'bg-white text-slate-500 border-slate-100 shadow-sm'}`}
+            >
+              <span className="material-icons-round">payments</span>
+              <span className="text-[10px] font-black uppercase tracking-tight">Todo al Recibir</span>
+            </button>
+          </div>
+        </section>
+
+        {/* RESUMEN MONETARIO */}
         <div className="bg-primary/5 rounded-[2rem] p-6 border border-primary/10">
            <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-bold text-gray-500 uppercase">Total Estimado:</span>
+              <span className="text-xs font-bold text-gray-500 uppercase">Total del Pedido:</span>
               <span className="text-2xl font-display text-gray-800">${appState.totalPrice.toFixed(2)}</span>
            </div>
-           <div className="flex justify-between items-center pt-2 border-t border-primary/10">
-              <span className="text-xs font-bold text-primary uppercase">Anticipo (50%):</span>
-              <span className="text-2xl font-display text-primary">${deposit.toFixed(2)}</span>
-           </div>
+           {appState.paymentStrategy === 'FIFTY_PERCENT' && (
+             <div className="flex justify-between items-center pt-2 border-t border-primary/10">
+                <span className="text-xs font-bold text-primary uppercase">Anticipo (Reserva):</span>
+                <span className="text-2xl font-display text-primary">${deposit.toFixed(2)}</span>
+             </div>
+           )}
+           {appState.paymentStrategy === 'FULL_ON_DELIVERY' && (
+             <div className="pt-2 border-t border-primary/10">
+                <span className="text-[9px] font-black text-primary uppercase tracking-widest">Pagará el total el día de la entrega</span>
+             </div>
+           )}
         </div>
       </main>
 
@@ -99,7 +132,7 @@ const SummaryStep: React.FC<SummaryStepProps> = ({ appState, onBack, onConfirm, 
           onClick={onConfirm}
           className="flex-[2] bg-primary text-white font-black py-4.5 rounded-2xl shadow-xl shadow-primary/20 flex items-center justify-center gap-2 hover:bg-rose-600 active:scale-95 transition-all text-xs uppercase tracking-widest"
         >
-          CONFIRMAR PAGO
+          {appState.paymentStrategy === 'FIFTY_PERCENT' ? 'CONFIRMAR PAGO' : 'CONFIRMAR PEDIDO'}
           <span className="material-icons-round text-base">check_circle</span>
         </button>
       </footer>

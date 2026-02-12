@@ -57,11 +57,18 @@ const SizeStep: React.FC<SizeStepProps> = ({ selectedSize, onSelectSize, onNext,
         </button>
       </div>
 
-      {/* CABECERA */}
-      <header className="pt-4 pb-2 md:pt-8 md:pb-4 px-4 md:px-8 flex flex-col md:flex-row justify-between items-center z-20 bg-surface-light/95 backdrop-blur-md border-b border-gray-100 shrink-0">
-        <div className="text-center md:text-left mb-3 md:mb-0">
-          <span className="bg-primary/10 text-primary text-[9px] md:text-[10px] font-black px-3 py-0.5 md:py-1 rounded-full uppercase tracking-widest mb-1 inline-block">Paso 1: Dimensión</span>
-          <h1 className="font-display text-2xl md:text-4xl text-black leading-tight uppercase tracking-tight">{config.appTheme.brandName}</h1>
+      {/* CABECERA CON SOPORTE PARA LOGO */}
+      <header className="pt-4 pb-2 md:pt-6 md:pb-4 px-4 md:px-8 flex flex-col md:flex-row justify-between items-center z-20 bg-surface-light/95 backdrop-blur-md border-b border-gray-100 shrink-0">
+        <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left mb-3 md:mb-0">
+          {config.appTheme.logoUrl ? (
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-white rounded-2xl shadow-xl p-1.5 border border-gray-50 flex items-center justify-center overflow-hidden animate-pop">
+               <img src={config.appTheme.logoUrl} className="w-full h-full object-contain" alt="Logo de la marca" />
+            </div>
+          ) : null}
+          <div>
+            <span className="bg-primary/10 text-primary text-[9px] md:text-[10px] font-black px-3 py-0.5 md:py-1 rounded-full uppercase tracking-widest mb-1 inline-block">Paso 1: Dimensión</span>
+            <h1 className="font-display text-2xl md:text-3xl text-black leading-tight uppercase tracking-tight">{config.appTheme.brandName}</h1>
+          </div>
         </div>
         
         <div className="bg-gray-100 p-1 rounded-xl md:rounded-2xl flex gap-1 border border-gray-200 min-w-[240px] md:min-w-[260px]">
