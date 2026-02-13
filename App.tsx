@@ -47,48 +47,39 @@ const DEFAULT_CONFIG: AppConfig = {
 const App: React.FC = () => {
   // --- CONFIGURATION STATE ---
   const [config, setConfig] = useState<AppConfig>(() => {
-    // Initial load from LocalStorage for speed
     const saved = localStorage.getItem('cake_app_config');
     if (saved) {
-      const parsed = JSON.parse(saved);
-      // Merge defaults to prevent breaking changes
-      return { ...DEFAULT_CONFIG, ...parsed };
+      return { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
     }
     return DEFAULT_CONFIG;
   });
 
-  // --- ORDERS STATE ---
   const [orders, setOrders] = useState<Order[]>(() => {
     const saved = localStorage.getItem('cake_app_orders');
     return saved ? JSON.parse(saved) : [];
   });
 
-  // --- FIREBASE SYNC EFFECT ---
+  // --- FIREBASE SYNC ---
   useEffect(() => {
-    if (!db) return; // Skip if firebase not configured
+    if (!db) return;
 
-    // 1. Sync Configuration
     const unsubscribeConfig = onSnapshot(doc(db, "settings", "appConfig"), (docSnap) => {
       if (docSnap.exists()) {
         const remoteConfig = docSnap.data() as AppConfig;
-        // Merge with defaults to ensure all fields exist
-        setConfig(prev => ({ ...prev, ...remoteConfig }));
-        localStorage.setItem('cake_app_config', JSON.stringify({ ...DEFAULT_CONFIG, ...remoteConfig }));
+        const merged = { ...DEFAULT_CONFIG, ...remoteConfig };
+        setConfig(merged);
+        localStorage.setItem('cake_app_config', JSON.stringify(merged));
       } else {
-        // Create initial config if it doesn't exist
         setDoc(doc(db, "settings", "appConfig"), config);
       }
     });
 
-    // 2. Sync Orders
     const unsubscribeOrders = onSnapshot(collection(db, "orders"), (snapshot) => {
       const remoteOrders: Order[] = [];
       snapshot.forEach((doc) => {
-        remoteOrders.push({ ...doc.data(), id: doc.id } as Order); // Use Firestore ID or internal ID
+        remoteOrders.push({ ...doc.data(), id: doc.id } as Order);
       });
-      // Sort by date desc
       remoteOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
       setOrders(remoteOrders);
       localStorage.setItem('cake_app_orders', JSON.stringify(remoteOrders));
     });
@@ -99,7 +90,7 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // --- THEME CSS VARIABLE UPDATE ---
+  // --- THEME ---
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty('--primary-color', config.appTheme.primaryColor);
@@ -109,7 +100,7 @@ const App: React.FC = () => {
     root.style.setProperty('--surface-color', config.appTheme.surfaceColor);
   }, [config.appTheme]);
 
-  // --- APP FLOW STATE ---
+  // --- APP STATE ---
   const [state, setState] = useState<AppState>({
     step: 'SIZE',
     selectedSize: config.sizes[1],
@@ -136,37 +127,46 @@ const App: React.FC = () => {
     paymentStrategy: 'FIFTY_PERCENT',
   });
 
-  // Calculate Price Logic
+  // --- CALCULAR TOTAL USANDO SIEMPRE LA DATA DE CONFIG (FIREBASE) ---
   const calculateTotal = useCallback((partial: Partial<AppState>) => {
-    const size = partial.selectedSize || state.selectedSize;
-    const flavor = partial.selectedFlavor || state.selectedFlavor;
-    const filling = partial.selectedFilling || state.selectedFilling;
+    // Tomar IDs de la selección actual o del cambio parcial
+    const sizeId = partial.selectedSize?.id || state.selectedSize?.id;
+    const flavorId = partial.selectedFlavor?.id || state.selectedFlavor?.id;
+    const fillingId = partial.selectedFilling?.id || state.selectedFilling?.id;
     const decorId = partial.selectedDecoration || state.selectedDecoration;
     const coverage = partial.coverageType || state.coverageType;
     const topper = partial.topperType || state.topperType;
     const spheres = partial.hasSpheres !== undefined ? partial.hasSpheres : state.hasSpheres;
     const currentColors = partial.cakeColors || state.cakeColors;
-    
-    const factor = size?.costMultiplier || 1.0;
 
-    const base = size?.basePrice || 0;
-    const fMod = (flavor?.priceModifier || 0) * factor;
-    const fillMod = (filling?.priceModifier || 0) * factor;
-    const decorMod = (config.decorations[decorId]?.priceModifier || 0) * factor;
-    const coverageMod = (config.coverageSurcharges[coverage] || 0) * factor;
+    // Buscar los objetos frescos en el config actual
+    const size = config.sizes.find(s => s.id === sizeId) || config.sizes[0];
+    const flavor = config.flavors.find(f => f.id === flavorId) || config.flavors[0];
+    const filling = config.fillings.find(f => f.id === fillingId) || config.fillings[0];
+    const decor = config.decorations[decorId] || { priceModifier: 0 };
     
+    const factor = size.costMultiplier || 1.0;
+
+    // Sumar componentes
+    const base = size.basePrice || 0;
+    const fMod = (flavor.priceModifier || 0) * factor;
+    const fillMod = (filling.priceModifier || 0) * factor;
+    const decorMod = (decor.priceModifier || 0) * factor;
+    const coverageMod = (config.coverageSurcharges[coverage] || 0) * factor;
     const topperMod = config.topperPrices[topper] || 0;
     const spheresMod = spheres ? (config.spheresPrice * factor) : 0;
     
+    // Recargo por colores saturados
     let colorSurcharge = 0;
     const hasSaturated = currentColors.some(hex => 
         config.colors.find(c => c.hex === hex)?.isSaturated
     );
-    if (hasSaturated) colorSurcharge = config.saturatedColorSurcharge * factor;
+    if (hasSaturated) colorSurcharge = (config.saturatedColorSurcharge || 0) * factor;
     
     return base + fMod + fillMod + decorMod + coverageMod + topperMod + spheresMod + colorSurcharge;
-  }, [state, config]);
+  }, [state.selectedSize, state.selectedFlavor, state.selectedFilling, state.selectedDecoration, state.coverageType, state.topperType, state.hasSpheres, state.cakeColors, config]);
 
+  // Recalcular cada vez que cambie algo relevante o llegue nueva config de Firebase
   useEffect(() => {
     setState(prev => ({ ...prev, totalPrice: calculateTotal({}) }));
   }, [config, calculateTotal]);
@@ -189,33 +189,28 @@ const App: React.FC = () => {
     });
   };
 
-  // --- ACTIONS ---
-
   const handleUpdateConfig = async (newConfig: AppConfig) => {
-    setConfig(newConfig); // Optimistic update
-    localStorage.setItem('cake_app_config', JSON.stringify(newConfig)); // Backup
-    
+    setConfig(newConfig);
+    localStorage.setItem('cake_app_config', JSON.stringify(newConfig));
     if (db) {
       try {
         await setDoc(doc(db, "settings", "appConfig"), newConfig);
       } catch (e) {
         console.error("Error saving config to Firebase", e);
-        alert("Error guardando en la nube. Se guardó localmente.");
       }
     }
   };
 
   const handleClearOrders = async () => {
-     if(confirm("¿Estás seguro de borrar el historial? Esto no se puede deshacer.")) {
+     if(confirm("¿Estás seguro de borrar el historial?")) {
         setOrders([]);
         localStorage.setItem('cake_app_orders', JSON.stringify([]));
-        alert("En modo Firebase, los pedidos no se borran masivamente por seguridad. Contacta al soporte.");
+        alert("Pedidos locales borrados. En nube permanecen por seguridad.");
      }
   };
 
   const handleFinalizeOrder = async () => {
     try {
-      // 1. DATA PREPARATION
       const deposit = state.totalPrice / 2;
       const colorNames = state.cakeColors.map(hex => 
           config.colors.find(c => c.hex === hex)?.name || 'Especial'
@@ -225,8 +220,7 @@ const App: React.FC = () => {
         ? `💳 Pago: Anticipo 50% (Ref ${state.paymentReference} - Bs. ${state.amountBs})`
         : `💵 Pago: 100% Contra Entrega`;
 
-      // Safe check for decoration
-      const decorLabel = config.decorations[state.selectedDecoration]?.label || 'Estilo Personalizado';
+      const decorLabel = config.decorations[state.selectedDecoration]?.label || 'Liso';
       
       const detailedInfo = `🎂 PASTEL ${state.selectedSize?.diameter || '?'}cm (${state.selectedSize?.heightType})
 🍰 Bizcocho: ${state.selectedFlavor?.name || 'Vainilla'}
@@ -249,8 +243,6 @@ ${paymentInfo}`;
         status: 'PENDING'
       };
 
-      // 2. OPEN WHATSAPP IMMEDIATELY (Before Async Operations)
-      // This prevents popup blockers on mobile
       const paymentSummary = state.paymentStrategy === 'FIFTY_PERCENT'
         ? `💰 *RESUMEN DE PAGO*
 - Total: $${state.totalPrice.toFixed(2)}
@@ -265,32 +257,15 @@ ${detailedInfo}
 
 ${paymentSummary}`;
 
-      const whatsappNumber = config.appTheme.whatsappNumber;
-      // Using window.open allows saving the tab reference, but on mobile sometimes works better as a direct location change if not in an async callback
-      // Since we are synchronous here (before any await), window.open should work fine.
-      window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
+      window.open(`https://wa.me/${config.appTheme.whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
 
-      // 3. UPDATE STATE AND STORAGE
       setOrders(prev => [newOrder, ...prev]);
-      
-      // Save locally as backup immediately
-      try {
-        const currentStored = JSON.parse(localStorage.getItem('cake_app_orders') || '[]');
-        localStorage.setItem('cake_app_orders', JSON.stringify([newOrder, ...currentStored]));
-      } catch (e) {
-        console.error("Local storage save error", e);
-      }
+      localStorage.setItem('cake_app_orders', JSON.stringify([newOrder, ...orders]));
 
-      // 4. FIREBASE SAVE (Async - Background)
       if (db) {
-        addDoc(collection(db, "orders"), newOrder).catch(e => {
-          console.error("Error saving order to cloud", e);
-          // Note: We don't alert the user here as they have already been redirected to WhatsApp
-          // and the local storage backup exists.
-        });
+        addDoc(collection(db, "orders"), newOrder).catch(console.error);
       }
 
-      // 5. NAVIGATE TO SUCCESS
       setState(prev => ({
         ...prev,
         step: 'SUCCESS',
@@ -298,8 +273,7 @@ ${paymentSummary}`;
       }));
 
     } catch (error) {
-      console.error("Critical error in finalize order:", error);
-      alert("Hubo un error inesperado creando el pedido. Por favor verifica los datos e intenta de nuevo.");
+      alert("Error creando pedido.");
     }
   };
 
@@ -311,7 +285,6 @@ ${paymentSummary}`;
 
   return (
     <div className="w-full h-full flex flex-col font-quicksand overflow-hidden bg-background-light">
-        {/* GLOBAL PERSISTENT BRAND HEADER */}
         {showBrandHeader && (
           <div className="w-full bg-primary h-16 md:h-20 flex items-center justify-center relative shrink-0 z-[60] shadow-md px-4">
             <div className="max-w-7xl w-full flex items-center justify-center">
@@ -319,7 +292,7 @@ ${paymentSummary}`;
                 <img src={config.appTheme.logoUrl} className="h-10 md:h-14 object-contain" alt="Logo" />
               ) : (
                 <h2 className="font-display text-xl md:text-2xl text-white tracking-widest uppercase italic">
-                  MATH <span className="text-secondary">CAKE</span>
+                  {config.appTheme.brandName}
                 </h2>
               )}
             </div>
@@ -331,7 +304,7 @@ ${paymentSummary}`;
             {state.step === 'SIZE' && (
               <SizeStep 
                 selectedSize={state.selectedSize} 
-                onSelectSize={(s) => setState(prev => ({ ...prev, selectedSize: s, totalPrice: calculateTotal({ selectedSize: s }) }))} 
+                onSelectSize={(s) => setState(prev => ({ ...prev, selectedSize: s }))} 
                 onNext={nextStep} 
                 onAdminClick={goToAdminLogin}
                 config={config}
@@ -340,8 +313,8 @@ ${paymentSummary}`;
             {state.step === 'FLAVOR' && (
               <FlavorStep 
                 {...state} 
-                onSelectFlavor={(f) => setState(prev => ({ ...prev, selectedFlavor: f, totalPrice: calculateTotal({ selectedFlavor: f }) }))} 
-                onSelectFilling={(fill) => setState(prev => ({ ...prev, selectedFilling: fill, totalPrice: calculateTotal({ selectedFilling: fill }) }))} 
+                onSelectFlavor={(f) => setState(prev => ({ ...prev, selectedFlavor: f }))} 
+                onSelectFilling={(fill) => setState(prev => ({ ...prev, selectedFilling: fill }))} 
                 onNext={nextStep} 
                 onBack={prevStep} 
                 onCustomFillingChange={(v) => setState(s => ({...s, customFilling: v}))} 
@@ -351,7 +324,7 @@ ${paymentSummary}`;
             {state.step === 'DECORATION' && (
               <DecorationStep 
                 {...state} 
-                onUpdateDecoration={(d) => setState(prev => ({ ...prev, ...d, totalPrice: calculateTotal(d) }))} 
+                onUpdateDecoration={(d) => setState(prev => ({ ...prev, ...d }))} 
                 onNext={nextStep} 
                 onBack={prevStep} 
                 config={config}
@@ -360,7 +333,7 @@ ${paymentSummary}`;
             {state.step === 'PERSONALIZATION' && (
               <PersonalizationStep 
                 appState={state} 
-                onUpdate={(d) => setState(prev => ({ ...prev, ...d, totalPrice: calculateTotal(d) }))} 
+                onUpdate={(d) => setState(prev => ({ ...prev, ...d }))} 
                 onNext={nextStep} 
                 onBack={prevStep} 
               />
