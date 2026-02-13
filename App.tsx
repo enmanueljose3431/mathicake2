@@ -29,6 +29,10 @@ const App: React.FC = () => {
           surfaceColor: "#FFFFFF"
         };
       }
+      // Ensure prices are present for legacy saved configs
+      if (parsed.spheresPrice === undefined) parsed.spheresPrice = SPHERES_PRICE;
+      if (parsed.saturatedColorSurcharge === undefined) parsed.saturatedColorSurcharge = SATURATED_COLOR_SURCHARGE;
+      
       return parsed;
     }
     return {

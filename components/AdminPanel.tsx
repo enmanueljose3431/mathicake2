@@ -416,7 +416,60 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
               </div>
             )}
 
-            {/* TAB: PAGOS */}
+            {/* TAB: PAGOS Y PRECIOS */}
+            {activeTab === 'PRICES' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-4 md:space-y-6">
+                  <h4 className="font-black text-slate-800 uppercase text-[10px] md:text-xs mb-4">Toppers</h4>
+                  {Object.entries(config.topperPrices).map(([k, v]) => (
+                    <div key={k} className="flex justify-between items-center gap-4">
+                      <span className="text-xs md:text-sm font-bold text-slate-600 uppercase truncate">{k}</span>
+                      <input type="number" className="w-16 md:w-20 bg-slate-50 border-none rounded-lg p-1.5 md:p-2 text-right font-bold text-primary text-xs md:text-sm" value={v} onChange={(e) => {
+                        updateConfig({ topperPrices: { ...config.topperPrices, [k]: parseFloat(e.target.value) } });
+                      }} />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-4 md:space-y-6">
+                   <h4 className="font-black text-slate-800 uppercase text-[10px] md:text-xs mb-4">Otros Recargos</h4>
+                   
+                   <div className="flex justify-between items-center gap-4">
+                      <div className="flex flex-col">
+                        <span className="text-xs md:text-sm font-bold text-slate-600 uppercase truncate">Esferas Decorativas</span>
+                        <span className="text-[9px] text-slate-400">Precio fijo</span>
+                      </div>
+                      <input 
+                        type="number" 
+                        className="w-16 md:w-20 bg-slate-50 border-none rounded-lg p-1.5 md:p-2 text-right font-bold text-primary text-xs md:text-sm" 
+                        value={config.spheresPrice || 0} 
+                        onChange={(e) => updateConfig({ spheresPrice: parseFloat(e.target.value) })} 
+                      />
+                   </div>
+
+                   <div className="flex justify-between items-center gap-4">
+                      <div className="flex flex-col">
+                        <span className="text-xs md:text-sm font-bold text-slate-600 uppercase truncate">Colores Intensos</span>
+                        <span className="text-[9px] text-slate-400">Recargo (Negro, Rojo, Azul Rey)</span>
+                      </div>
+                      <input 
+                        type="number" 
+                        className="w-16 md:w-20 bg-slate-50 border-none rounded-lg p-1.5 md:p-2 text-right font-bold text-primary text-xs md:text-sm" 
+                        value={config.saturatedColorSurcharge || 0} 
+                        onChange={(e) => updateConfig({ saturatedColorSurcharge: parseFloat(e.target.value) })} 
+                      />
+                   </div>
+                   
+                   <div className="pt-4 border-t border-slate-100">
+                     <p className="text-[10px] text-slate-400 italic">
+                        * El recargo por colores intensos se aplica automáticamente si el cliente selecciona colores marcados como saturados.
+                     </p>
+                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: DATOS BANCARIOS */}
             {activeTab === 'PAYMENTS' && (
               <div className="space-y-6 md:space-y-8">
                 <div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm max-w-4xl">
@@ -527,22 +580,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
                      ))}
                   </div>
                </div>
-            )}
-
-            {activeTab === 'PRICES' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-4 md:space-y-6">
-                  <h4 className="font-black text-slate-800 uppercase text-[10px] md:text-xs mb-4">Toppers</h4>
-                  {Object.entries(config.topperPrices).map(([k, v]) => (
-                    <div key={k} className="flex justify-between items-center gap-4">
-                      <span className="text-xs md:text-sm font-bold text-slate-600 uppercase truncate">{k}</span>
-                      <input type="number" className="w-16 md:w-20 bg-slate-50 border-none rounded-lg p-1.5 md:p-2 text-right font-bold text-primary text-xs md:text-sm" value={v} onChange={(e) => {
-                        updateConfig({ topperPrices: { ...config.topperPrices, [k]: parseFloat(e.target.value) } });
-                      }} />
-                    </div>
-                  ))}
-                </div>
-              </div>
             )}
 
           </div>

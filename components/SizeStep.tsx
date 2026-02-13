@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { CakeSize, HeightType, AppConfig } from '../types';
 
@@ -11,7 +10,7 @@ interface SizeStepProps {
 }
 
 const SizeStep: React.FC<SizeStepProps> = ({ selectedSize, onSelectSize, onNext, onAdminClick, config }) => {
-  const diameters = Array.from(new Set(config.sizes.map(s => s.diameter))).sort((a, b) => a - b);
+  const diameters = Array.from(new Set<number>(config.sizes.map(s => s.diameter))).sort((a, b) => a - b);
   const scrollRef = useRef<HTMLDivElement>(null);
   
   const currentDiameter = selectedSize?.diameter || 18;

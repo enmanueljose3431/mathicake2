@@ -237,7 +237,7 @@ const DecorationStep: React.FC<DecorationStepProps> = ({
                   </div>
                   <div className="flex flex-col">
                     <span className="text-xs md:text-xl font-black text-black uppercase tracking-tight md:tracking-widest leading-none mb-1 md:mb-2">Esferas Decorativas</span>
-                    <span className="text-[9px] md:text-sm font-black text-primary uppercase bg-primary/10 px-2 md:px-4 py-0.5 md:py-1 rounded-full border border-primary/10 w-fit">+$8.00</span>
+                    <span className="text-[9px] md:text-sm font-black text-primary uppercase bg-primary/10 px-2 md:px-4 py-0.5 md:py-1 rounded-full border border-primary/10 w-fit">+${config.spheresPrice.toFixed(2)}</span>
                   </div>
                </div>
                <button 
