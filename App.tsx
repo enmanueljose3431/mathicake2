@@ -12,58 +12,94 @@ import SuccessStep from './components/SuccessStep';
 import AdminLogin from './components/AdminLogin';
 import AdminPanel from './components/AdminPanel';
 
+// Firebase imports
+import { db } from './firebase';
+import { collection, onSnapshot, doc, setDoc, addDoc, updateDoc, getDoc } from 'firebase/firestore';
+
+const DEFAULT_CONFIG: AppConfig = {
+  sizes: CAKE_SIZES,
+  flavors: FLAVORS,
+  fillings: FILLINGS,
+  colors: CAKE_COLORS,
+  decorations: DECORATIONS,
+  topperPrices: TOPPER_PRICES,
+  spheresPrice: SPHERES_PRICE,
+  saturatedColorSurcharge: SATURATED_COLOR_SURCHARGE,
+  coverageSurcharges: { chantilly: 0, chocolate: 5, arequipe: 4 },
+  paymentDetails: {
+    bankName: "Pastelitos Bank",
+    accountHolder: "Cakes Studio S.A.",
+    zelleEmail: "pagos@cakesstudio.com",
+    taxId: "J-12345678-9",
+    exchangeRateNote: "Trabajamos con Tasa Euro (€)"
+  },
+  appTheme: {
+    brandName: "Cake Customizer Studio",
+    whatsappNumber: "584241546473",
+    primaryColor: "#E31C58",
+    secondaryColor: "#FFEB3B",
+    backgroundColor: "#FFFBF2",
+    textColor: "#000000",
+    surfaceColor: "#FFFFFF"
+  }
+};
+
 const App: React.FC = () => {
+  // --- CONFIGURATION STATE ---
   const [config, setConfig] = useState<AppConfig>(() => {
+    // Initial load from LocalStorage for speed
     const saved = localStorage.getItem('cake_app_config');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (!parsed.appTheme || !parsed.appTheme.primaryColor) {
-        parsed.appTheme = {
-          ...parsed.appTheme,
-          brandName: parsed.appTheme?.brandName || "Cake Customizer Studio",
-          whatsappNumber: parsed.appTheme?.whatsappNumber || "584241546473",
-          primaryColor: "#E31C58",
-          secondaryColor: "#FFEB3B",
-          backgroundColor: "#FFFBF2",
-          textColor: "#000000",
-          surfaceColor: "#FFFFFF"
-        };
-      }
-      // Ensure prices are present for legacy saved configs
-      if (parsed.spheresPrice === undefined) parsed.spheresPrice = SPHERES_PRICE;
-      if (parsed.saturatedColorSurcharge === undefined) parsed.saturatedColorSurcharge = SATURATED_COLOR_SURCHARGE;
-      
-      return parsed;
+      // Merge defaults to prevent breaking changes
+      return { ...DEFAULT_CONFIG, ...parsed };
     }
-    return {
-      sizes: CAKE_SIZES,
-      flavors: FLAVORS,
-      fillings: FILLINGS,
-      colors: CAKE_COLORS,
-      decorations: DECORATIONS,
-      topperPrices: TOPPER_PRICES,
-      spheresPrice: SPHERES_PRICE,
-      saturatedColorSurcharge: SATURATED_COLOR_SURCHARGE,
-      coverageSurcharges: { chantilly: 0, chocolate: 5, arequipe: 4 },
-      paymentDetails: {
-        bankName: "Pastelitos Bank",
-        accountHolder: "Cakes Studio S.A.",
-        zelleEmail: "pagos@cakesstudio.com",
-        taxId: "J-12345678-9",
-        exchangeRateNote: "Trabajamos con Tasa Euro (€)"
-      },
-      appTheme: {
-        brandName: "Cake Customizer Studio",
-        whatsappNumber: "584241546473",
-        primaryColor: "#E31C58",
-        secondaryColor: "#FFEB3B",
-        backgroundColor: "#FFFBF2",
-        textColor: "#000000",
-        surfaceColor: "#FFFFFF"
-      }
-    };
+    return DEFAULT_CONFIG;
   });
 
+  // --- ORDERS STATE ---
+  const [orders, setOrders] = useState<Order[]>(() => {
+    const saved = localStorage.getItem('cake_app_orders');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // --- FIREBASE SYNC EFFECT ---
+  useEffect(() => {
+    if (!db) return; // Skip if firebase not configured
+
+    // 1. Sync Configuration
+    const unsubscribeConfig = onSnapshot(doc(db, "settings", "appConfig"), (docSnap) => {
+      if (docSnap.exists()) {
+        const remoteConfig = docSnap.data() as AppConfig;
+        // Merge with defaults to ensure all fields exist
+        setConfig(prev => ({ ...prev, ...remoteConfig }));
+        localStorage.setItem('cake_app_config', JSON.stringify({ ...DEFAULT_CONFIG, ...remoteConfig }));
+      } else {
+        // Create initial config if it doesn't exist
+        setDoc(doc(db, "settings", "appConfig"), config);
+      }
+    });
+
+    // 2. Sync Orders
+    const unsubscribeOrders = onSnapshot(collection(db, "orders"), (snapshot) => {
+      const remoteOrders: Order[] = [];
+      snapshot.forEach((doc) => {
+        remoteOrders.push({ ...doc.data(), id: doc.id } as Order); // Use Firestore ID or internal ID
+      });
+      // Sort by date desc (assuming date string format allows basic sort, usually better to use timestamp)
+      remoteOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      setOrders(remoteOrders);
+      localStorage.setItem('cake_app_orders', JSON.stringify(remoteOrders));
+    });
+
+    return () => {
+      unsubscribeConfig();
+      unsubscribeOrders();
+    };
+  }, []);
+
+  // --- THEME CSS VARIABLE UPDATE ---
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty('--primary-color', config.appTheme.primaryColor);
@@ -73,14 +109,10 @@ const App: React.FC = () => {
     root.style.setProperty('--surface-color', config.appTheme.surfaceColor);
   }, [config.appTheme]);
 
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('cake_app_orders');
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  // --- APP FLOW STATE ---
   const [state, setState] = useState<AppState>({
     step: 'SIZE',
-    selectedSize: config.sizes[1], // 14 TALL as default
+    selectedSize: config.sizes[1],
     selectedFlavor: config.flavors[0],
     selectedFilling: config.fillings[1],
     selectedDecoration: 'liso',
@@ -104,14 +136,7 @@ const App: React.FC = () => {
     paymentStrategy: 'FIFTY_PERCENT',
   });
 
-  useEffect(() => {
-    localStorage.setItem('cake_app_config', JSON.stringify(config));
-  }, [config]);
-
-  useEffect(() => {
-    localStorage.setItem('cake_app_orders', JSON.stringify(orders));
-  }, [orders]);
-
+  // Calculate Price Logic
   const calculateTotal = useCallback((partial: Partial<AppState>) => {
     const size = partial.selectedSize || state.selectedSize;
     const flavor = partial.selectedFlavor || state.selectedFlavor;
@@ -164,7 +189,33 @@ const App: React.FC = () => {
     });
   };
 
-  const handleFinalizeOrder = () => {
+  // --- ACTIONS ---
+
+  const handleUpdateConfig = async (newConfig: AppConfig) => {
+    setConfig(newConfig); // Optimistic update
+    localStorage.setItem('cake_app_config', JSON.stringify(newConfig)); // Backup
+    
+    if (db) {
+      try {
+        await setDoc(doc(db, "settings", "appConfig"), newConfig);
+      } catch (e) {
+        console.error("Error saving config to Firebase", e);
+        alert("Error guardando en la nube. Se guardó localmente.");
+      }
+    }
+  };
+
+  const handleClearOrders = async () => {
+     if(confirm("¿Estás seguro de borrar el historial? Esto no se puede deshacer.")) {
+        setOrders([]);
+        localStorage.setItem('cake_app_orders', JSON.stringify([]));
+        // Note: Deleting collection in Firestore from client is not recommended/easy without cloud functions.
+        // For this demo, we just clear local state or implement a loop if needed, but usually we just archive them.
+        alert("En modo Firebase, los pedidos no se borran masivamente por seguridad. Contacta al soporte.");
+     }
+  };
+
+  const handleFinalizeOrder = async () => {
     const deposit = state.totalPrice / 2;
     const colorNames = state.cakeColors.map(hex => 
         config.colors.find(c => c.hex === hex)?.name || 'Especial'
@@ -185,9 +236,9 @@ const App: React.FC = () => {
 📍 Entrega: ${state.deliveryMethod} - ${state.deliveryDate} ${state.deliveryTime}
 ${paymentInfo}`;
 
-    const orderId = Math.random().toString(36).substr(2, 9).toUpperCase();
+    const simpleId = Math.random().toString(36).substr(2, 6).toUpperCase();
     const newOrder: Order = {
-      id: orderId,
+      id: simpleId, // Temporary ID
       date: new Date().toLocaleString(),
       customerName: state.birthdayName || 'Cliente Web',
       details: detailedInfo,
@@ -195,8 +246,20 @@ ${paymentInfo}`;
       status: 'PENDING'
     };
 
+    // Save to State/Local
     setOrders(prev => [newOrder, ...prev]);
+    localStorage.setItem('cake_app_orders', JSON.stringify([newOrder, ...orders]));
 
+    // Save to Firebase
+    if (db) {
+      try {
+        await addDoc(collection(db, "orders"), newOrder);
+      } catch (e) {
+        console.error("Error saving order to cloud", e);
+      }
+    }
+
+    // WhatsApp Redirect
     const paymentSummary = state.paymentStrategy === 'FIFTY_PERCENT'
       ? `💰 *RESUMEN DE PAGO*
 - Total: $${state.totalPrice.toFixed(2)}
@@ -217,7 +280,7 @@ ${paymentSummary}`;
     setState(prev => ({
       ...prev,
       step: 'SUCCESS',
-      lastOrderId: orderId,
+      lastOrderId: newOrder.id,
     }));
   };
 
@@ -316,9 +379,9 @@ ${paymentSummary}`;
             <div className="fixed inset-0 z-[100]">
               <AdminPanel 
                 config={config} 
-                onUpdateConfig={setConfig} 
+                onUpdateConfig={handleUpdateConfig} 
                 orders={orders}
-                onClearOrders={() => setOrders([])}
+                onClearOrders={handleClearOrders}
                 onExit={exitAdmin} 
               />
             </div>
