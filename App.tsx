@@ -14,7 +14,7 @@ import AdminPanel from './components/AdminPanel';
 
 // Firebase imports
 import { db } from './firebase';
-import { collection, onSnapshot, doc, setDoc, addDoc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, addDoc } from 'firebase/firestore';
 
 const DEFAULT_CONFIG: AppConfig = {
   sizes: CAKE_SIZES,
