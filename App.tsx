@@ -86,7 +86,7 @@ const App: React.FC = () => {
       snapshot.forEach((doc) => {
         remoteOrders.push({ ...doc.data(), id: doc.id } as Order); // Use Firestore ID or internal ID
       });
-      // Sort by date desc (assuming date string format allows basic sort, usually better to use timestamp)
+      // Sort by date desc
       remoteOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       
       setOrders(remoteOrders);
@@ -209,26 +209,29 @@ const App: React.FC = () => {
      if(confirm("¿Estás seguro de borrar el historial? Esto no se puede deshacer.")) {
         setOrders([]);
         localStorage.setItem('cake_app_orders', JSON.stringify([]));
-        // Note: Deleting collection in Firestore from client is not recommended/easy without cloud functions.
-        // For this demo, we just clear local state or implement a loop if needed, but usually we just archive them.
         alert("En modo Firebase, los pedidos no se borran masivamente por seguridad. Contacta al soporte.");
      }
   };
 
   const handleFinalizeOrder = async () => {
-    const deposit = state.totalPrice / 2;
-    const colorNames = state.cakeColors.map(hex => 
-        config.colors.find(c => c.hex === hex)?.name || 'Especial'
-    ).join(', ');
+    try {
+      // 1. DATA PREPARATION
+      const deposit = state.totalPrice / 2;
+      const colorNames = state.cakeColors.map(hex => 
+          config.colors.find(c => c.hex === hex)?.name || 'Especial'
+      ).join(', ');
 
-    const paymentInfo = state.paymentStrategy === 'FIFTY_PERCENT' 
-      ? `💳 Pago: Anticipo 50% (Ref ${state.paymentReference} - Bs. ${state.amountBs})`
-      : `💵 Pago: 100% Contra Entrega`;
+      const paymentInfo = state.paymentStrategy === 'FIFTY_PERCENT' 
+        ? `💳 Pago: Anticipo 50% (Ref ${state.paymentReference} - Bs. ${state.amountBs})`
+        : `💵 Pago: 100% Contra Entrega`;
 
-    const detailedInfo = `🎂 PASTEL ${state.selectedSize?.diameter}cm (${state.selectedSize?.heightType})
-🍰 Bizcocho: ${state.selectedFlavor?.name}
-🍦 Relleno: ${state.selectedFilling?.id === 'others' ? state.customFilling : state.selectedFilling?.name}
-✨ Estilo: ${config.decorations[state.selectedDecoration].label}
+      // Safe check for decoration
+      const decorLabel = config.decorations[state.selectedDecoration]?.label || 'Estilo Personalizado';
+      
+      const detailedInfo = `🎂 PASTEL ${state.selectedSize?.diameter || '?'}cm (${state.selectedSize?.heightType})
+🍰 Bizcocho: ${state.selectedFlavor?.name || 'Vainilla'}
+🍦 Relleno: ${state.selectedFilling?.id === 'others' ? state.customFilling : (state.selectedFilling?.name || 'Clásico')}
+✨ Estilo: ${decorLabel}
 🎨 Colores: ${colorNames}
 🎯 Cobertura: ${state.coverageType.toUpperCase()}
 🚀 Extras: ${state.topperType !== 'none' ? 'Topper '+state.topperType : 'Sin Topper'}${state.hasSpheres ? ', con Esferas' : ''}
@@ -236,52 +239,68 @@ const App: React.FC = () => {
 📍 Entrega: ${state.deliveryMethod} - ${state.deliveryDate} ${state.deliveryTime}
 ${paymentInfo}`;
 
-    const simpleId = Math.random().toString(36).substr(2, 6).toUpperCase();
-    const newOrder: Order = {
-      id: simpleId, // Temporary ID
-      date: new Date().toLocaleString(),
-      customerName: state.birthdayName || 'Cliente Web',
-      details: detailedInfo,
-      total: state.totalPrice,
-      status: 'PENDING'
-    };
+      const simpleId = Math.random().toString(36).substr(2, 6).toUpperCase();
+      const newOrder: Order = {
+        id: simpleId,
+        date: new Date().toLocaleString(),
+        customerName: state.birthdayName || 'Cliente Web',
+        details: detailedInfo,
+        total: state.totalPrice,
+        status: 'PENDING'
+      };
 
-    // Save to State/Local
-    setOrders(prev => [newOrder, ...prev]);
-    localStorage.setItem('cake_app_orders', JSON.stringify([newOrder, ...orders]));
-
-    // Save to Firebase
-    if (db) {
-      try {
-        await addDoc(collection(db, "orders"), newOrder);
-      } catch (e) {
-        console.error("Error saving order to cloud", e);
-      }
-    }
-
-    // WhatsApp Redirect
-    const paymentSummary = state.paymentStrategy === 'FIFTY_PERCENT'
-      ? `💰 *RESUMEN DE PAGO*
+      // 2. OPEN WHATSAPP IMMEDIATELY (Before Async Operations)
+      // This prevents popup blockers on mobile
+      const paymentSummary = state.paymentStrategy === 'FIFTY_PERCENT'
+        ? `💰 *RESUMEN DE PAGO*
 - Total: $${state.totalPrice.toFixed(2)}
 - Anticipo (50%): $${deposit.toFixed(2)}
 - Pendiente: $${deposit.toFixed(2)}`
-      : `💰 *RESUMEN DE PAGO*
+        : `💰 *RESUMEN DE PAGO*
 - Total a pagar al recibir: $${state.totalPrice.toFixed(2)}`;
 
-    const message = `🎂 *¡NUEVO PEDIDO DE PASTEL!* 🎂 (Ref: ${newOrder.id})
+      const message = `🎂 *¡NUEVO PEDIDO DE PASTEL!* 🎂 (Ref: ${newOrder.id})
 
 ${detailedInfo}
 
 ${paymentSummary}`;
 
-    const whatsappNumber = config.appTheme.whatsappNumber;
-    window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
+      const whatsappNumber = config.appTheme.whatsappNumber;
+      // Using window.open allows saving the tab reference, but on mobile sometimes works better as a direct location change if not in an async callback
+      // Since we are synchronous here (before any await), window.open should work fine.
+      window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
 
-    setState(prev => ({
-      ...prev,
-      step: 'SUCCESS',
-      lastOrderId: newOrder.id,
-    }));
+      // 3. UPDATE STATE AND STORAGE
+      setOrders(prev => [newOrder, ...prev]);
+      
+      // Save locally as backup immediately
+      try {
+        const currentStored = JSON.parse(localStorage.getItem('cake_app_orders') || '[]');
+        localStorage.setItem('cake_app_orders', JSON.stringify([newOrder, ...currentStored]));
+      } catch (e) {
+        console.error("Local storage save error", e);
+      }
+
+      // 4. FIREBASE SAVE (Async - Background)
+      if (db) {
+        addDoc(collection(db, "orders"), newOrder).catch(e => {
+          console.error("Error saving order to cloud", e);
+          // Note: We don't alert the user here as they have already been redirected to WhatsApp
+          // and the local storage backup exists.
+        });
+      }
+
+      // 5. NAVIGATE TO SUCCESS
+      setState(prev => ({
+        ...prev,
+        step: 'SUCCESS',
+        lastOrderId: newOrder.id,
+      }));
+
+    } catch (error) {
+      console.error("Critical error in finalize order:", error);
+      alert("Hubo un error inesperado creando el pedido. Por favor verifica los datos e intenta de nuevo.");
+    }
   };
 
   const resetToStart = () => setState(prev => ({ ...prev, step: 'SIZE' }));
