@@ -10,6 +10,21 @@ interface PersonalizationStepProps {
 }
 
 const PersonalizationStep: React.FC<PersonalizationStepProps> = ({ appState, onUpdate, onNext, onBack }) => {
+  // Función para calcular la fecha mínima (hoy + 2 días)
+  const getMinDateString = () => {
+    const today = new Date();
+    const minDate = new Date(today);
+    minDate.setDate(today.getDate() + 2);
+    
+    const year = minDate.getFullYear();
+    const month = String(minDate.getMonth() + 1).padStart(2, '0');
+    const day = String(minDate.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  };
+
+  const minDate = getMinDateString();
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -27,10 +42,13 @@ const PersonalizationStep: React.FC<PersonalizationStepProps> = ({ appState, onU
     { id: 'arequipe', label: 'Arequipe', icon: 'honey_house' },
   ];
 
+  // Validación: Todos los campos requeridos + fecha >= minDate
+  const isDateValid = appState.deliveryDate && appState.deliveryDate >= minDate;
+  
   const canContinue = 
     appState.theme && 
     appState.birthdayName && 
-    appState.deliveryDate && 
+    isDateValid && 
     appState.deliveryTime;
 
   return (
@@ -153,10 +171,14 @@ const PersonalizationStep: React.FC<PersonalizationStepProps> = ({ appState, onU
                     <label className="block text-[10px] md:text-xs font-bold text-gray-700 uppercase mb-2 ml-1 tracking-widest">Fecha Evento</label>
                     <input 
                       type="date" 
-                      className="w-full bg-gray-50 border-none rounded-2xl md:rounded-3xl p-4 md:p-6 text-sm md:text-lg font-bold text-gray-800 focus:ring-4 focus:ring-primary/10"
+                      min={minDate}
+                      className={`w-full bg-gray-50 border-none rounded-2xl md:rounded-3xl p-4 md:p-6 text-sm md:text-lg font-bold text-gray-800 focus:ring-4 focus:ring-primary/10 ${appState.deliveryDate && !isDateValid ? 'ring-2 ring-red-500' : ''}`}
                       value={appState.deliveryDate}
                       onChange={(e) => onUpdate({ deliveryDate: e.target.value })}
                     />
+                    <p className="text-[8px] md:text-[9px] text-primary/60 font-black uppercase mt-2 ml-1 tracking-widest">
+                       Mínimo 48h de anticipación
+                    </p>
                   </div>
                   <div>
                     <label className="block text-[10px] md:text-xs font-bold text-gray-700 uppercase mb-2 ml-1 tracking-widest">Hora Entrega</label>

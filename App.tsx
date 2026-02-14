@@ -14,7 +14,7 @@ import AdminPanel from './components/AdminPanel';
 
 // Firebase imports
 import { db } from './firebase';
-import { collection, onSnapshot, doc, setDoc, addDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, getDoc } from 'firebase/firestore';
 
 const DEFAULT_CONFIG: AppConfig = {
   sizes: CAKE_SIZES,
@@ -27,15 +27,15 @@ const DEFAULT_CONFIG: AppConfig = {
   saturatedColorSurcharge: SATURATED_COLOR_SURCHARGE,
   coverageSurcharges: { chantilly: 0, chocolate: 5, arequipe: 4 },
   paymentDetails: {
-    bankName: "Pastelitos Bank",
-    accountHolder: "Cakes Studio S.A.",
-    zelleEmail: "pagos@cakesstudio.com",
-    taxId: "J-12345678-9",
-    exchangeRateNote: "Trabajamos con Tasa Euro (€)"
+    bankName: "Banco de Venezuela",
+    accountHolder: "Tu Nombre Aquí",
+    zelleEmail: "tu@correo.com",
+    taxId: "V-00000000",
+    exchangeRateNote: "Tasa BCV del día"
   },
   appTheme: {
-    brandName: "Cake Customizer Studio",
-    whatsappNumber: "584241546473",
+    brandName: "MathiCake Studio",
+    whatsappNumber: "584240000000",
     primaryColor: "#E31C58",
     secondaryColor: "#FFEB3B",
     backgroundColor: "#FFFBF2",
@@ -45,32 +45,43 @@ const DEFAULT_CONFIG: AppConfig = {
 };
 
 const App: React.FC = () => {
-  // --- CONFIGURATION STATE ---
-  const [config, setConfig] = useState<AppConfig>(() => {
-    const saved = localStorage.getItem('cake_app_config');
-    if (saved) {
-      return { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
-    }
-    return DEFAULT_CONFIG;
-  });
-
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('cake_app_orders');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
 
   // --- FIREBASE SYNC ---
   useEffect(() => {
     if (!db) return;
 
-    const unsubscribeConfig = onSnapshot(doc(db, "settings", "appConfig"), (docSnap) => {
+    const configDocRef = doc(db, "settings", "appConfig");
+
+    const initConfig = async () => {
+      try {
+        const docSnap = await getDoc(configDocRef);
+        if (docSnap.exists()) {
+          setConfig({ ...DEFAULT_CONFIG, ...docSnap.data() } as AppConfig);
+        } else {
+          await setDoc(configDocRef, DEFAULT_CONFIG);
+        }
+        setFirebaseError(null);
+      } catch (e: any) {
+        if (e.code === 'permission-denied') {
+          setFirebaseError("Firestore BLOQUEADO: Cambia 'if false' por 'if true' en la pestaña Rules de tu Firebase.");
+        }
+        console.error("Error Firebase Init:", e);
+      }
+    };
+
+    initConfig();
+
+    const unsubscribeConfig = onSnapshot(configDocRef, (docSnap) => {
       if (docSnap.exists()) {
-        const remoteConfig = docSnap.data() as AppConfig;
-        const merged = { ...DEFAULT_CONFIG, ...remoteConfig };
-        setConfig(merged);
-        localStorage.setItem('cake_app_config', JSON.stringify(merged));
-      } else {
-        setDoc(doc(db, "settings", "appConfig"), config);
+        setConfig(prev => ({ ...prev, ...docSnap.data() }));
+        setFirebaseError(null);
+      }
+    }, (err) => {
+      if (err.code === 'permission-denied') {
+        setFirebaseError("PERMISOS DENEGADOS: Cambia 'if false' por 'if true' en tu consola de Firebase (Rules).");
       }
     });
 
@@ -81,7 +92,12 @@ const App: React.FC = () => {
       });
       remoteOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setOrders(remoteOrders);
-      localStorage.setItem('cake_app_orders', JSON.stringify(remoteOrders));
+      setFirebaseError(null);
+    }, (err) => {
+      if (err.code === 'permission-denied') {
+        setFirebaseError("Firestore BLOQUEADO: No se pueden cargar pedidos por reglas de seguridad.");
+      }
+      console.error("Error en escucha de pedidos:", err);
     });
 
     return () => {
@@ -100,7 +116,6 @@ const App: React.FC = () => {
     root.style.setProperty('--surface-color', config.appTheme.surfaceColor);
   }, [config.appTheme]);
 
-  // --- APP STATE ---
   const [state, setState] = useState<AppState>({
     step: 'SIZE',
     selectedSize: config.sizes[1],
@@ -127,113 +142,64 @@ const App: React.FC = () => {
     paymentStrategy: 'FIFTY_PERCENT',
   });
 
-  // --- CALCULAR TOTAL USANDO SIEMPRE LA DATA DE CONFIG (FIREBASE) ---
-  const calculateTotal = useCallback((partial: Partial<AppState>) => {
-    // Tomar IDs de la selección actual o del cambio parcial
-    const sizeId = partial.selectedSize?.id || state.selectedSize?.id;
-    const flavorId = partial.selectedFlavor?.id || state.selectedFlavor?.id;
-    const fillingId = partial.selectedFilling?.id || state.selectedFilling?.id;
-    const decorId = partial.selectedDecoration || state.selectedDecoration;
-    const coverage = partial.coverageType || state.coverageType;
-    const topper = partial.topperType || state.topperType;
-    const spheres = partial.hasSpheres !== undefined ? partial.hasSpheres : state.hasSpheres;
-    const currentColors = partial.cakeColors || state.cakeColors;
-
-    // Buscar los objetos frescos en el config actual
-    const size = config.sizes.find(s => s.id === sizeId) || config.sizes[0];
-    const flavor = config.flavors.find(f => f.id === flavorId) || config.flavors[0];
-    const filling = config.fillings.find(f => f.id === fillingId) || config.fillings[0];
-    const decor = config.decorations[decorId] || { priceModifier: 0 };
-    
+  const calculateTotal = useCallback(() => {
+    const size = config.sizes.find(s => s.id === state.selectedSize?.id) || config.sizes[0];
+    const flavor = config.flavors.find(f => f.id === state.selectedFlavor?.id) || config.flavors[0];
+    const filling = config.fillings.find(f => f.id === state.selectedFilling?.id) || config.fillings[0];
+    const decor = config.decorations[state.selectedDecoration] || { priceModifier: 0 };
     const factor = size.costMultiplier || 1.0;
 
-    // Sumar componentes
-    const base = size.basePrice || 0;
-    const fMod = (flavor.priceModifier || 0) * factor;
-    const fillMod = (filling.priceModifier || 0) * factor;
-    const decorMod = (decor.priceModifier || 0) * factor;
-    const coverageMod = (config.coverageSurcharges[coverage] || 0) * factor;
-    const topperMod = config.topperPrices[topper] || 0;
-    const spheresMod = spheres ? (config.spheresPrice * factor) : 0;
-    
-    // Recargo por colores saturados
-    let colorSurcharge = 0;
-    const hasSaturated = currentColors.some(hex => 
-        config.colors.find(c => c.hex === hex)?.isSaturated
-    );
-    if (hasSaturated) colorSurcharge = (config.saturatedColorSurcharge || 0) * factor;
-    
-    return base + fMod + fillMod + decorMod + coverageMod + topperMod + spheresMod + colorSurcharge;
-  }, [state.selectedSize, state.selectedFlavor, state.selectedFilling, state.selectedDecoration, state.coverageType, state.topperType, state.hasSpheres, state.cakeColors, config]);
+    let total = size.basePrice + 
+                (flavor.priceModifier * factor) + 
+                (filling.priceModifier * factor) + 
+                (decor.priceModifier * factor) + 
+                (config.coverageSurcharges[state.coverageType] * factor) + 
+                (config.topperPrices[state.topperType] || 0);
 
-  // Recalcular cada vez que cambie algo relevante o llegue nueva config de Firebase
+    if (state.hasSpheres) total += (config.spheresPrice * factor);
+    
+    const hasSaturated = state.cakeColors.some(hex => config.colors.find(c => c.hex === hex)?.isSaturated);
+    if (hasSaturated) total += (config.saturatedColorSurcharge * factor);
+    
+    return total;
+  }, [state, config]);
+
   useEffect(() => {
-    setState(prev => ({ ...prev, totalPrice: calculateTotal({}) }));
-  }, [config, calculateTotal]);
-
-  const nextStep = () => {
-    setState(prev => {
-      const steps: Step[] = ['SIZE', 'FLAVOR', 'DECORATION', 'PERSONALIZATION', 'SUMMARY', 'PAYMENT'];
-      const currentIndex = steps.indexOf(prev.step);
-      if (currentIndex < steps.length - 1) return { ...prev, step: steps[currentIndex + 1] };
-      return prev;
-    });
-  };
-
-  const prevStep = () => {
-    setState(prev => {
-      const steps: Step[] = ['SIZE', 'FLAVOR', 'DECORATION', 'PERSONALIZATION', 'SUMMARY', 'PAYMENT'];
-      const currentIndex = steps.indexOf(prev.step);
-      if (currentIndex > 0) return { ...prev, step: steps[currentIndex - 1] };
-      return prev;
-    });
-  };
+    setState(prev => ({ ...prev, totalPrice: calculateTotal() }));
+  }, [state.selectedSize, state.selectedFlavor, state.selectedFilling, state.selectedDecoration, state.coverageType, state.topperType, state.hasSpheres, state.cakeColors, config]);
 
   const handleUpdateConfig = async (newConfig: AppConfig) => {
     setConfig(newConfig);
-    localStorage.setItem('cake_app_config', JSON.stringify(newConfig));
     if (db) {
       try {
         await setDoc(doc(db, "settings", "appConfig"), newConfig);
-      } catch (e) {
-        console.error("Error saving config to Firebase", e);
+      } catch (e: any) {
+        if (e.code === 'permission-denied') {
+          alert("ERROR DE PERMISOS: No se guardó en Firebase. Cambia 'if false' por 'if true' en tu consola de Firebase.");
+        } else {
+          alert("Error al guardar: " + e.message);
+        }
       }
     }
   };
 
-  const handleClearOrders = async () => {
-     if(confirm("¿Estás seguro de borrar el historial?")) {
-        setOrders([]);
-        localStorage.setItem('cake_app_orders', JSON.stringify([]));
-        alert("Pedidos locales borrados. En nube permanecen por seguridad.");
-     }
-  };
-
   const handleFinalizeOrder = async () => {
+    const simpleId = Math.random().toString(36).substr(2, 6).toUpperCase();
+    
     try {
-      const deposit = state.totalPrice / 2;
-      const colorNames = state.cakeColors.map(hex => 
-          config.colors.find(c => c.hex === hex)?.name || 'Especial'
-      ).join(', ');
-
-      const paymentInfo = state.paymentStrategy === 'FIFTY_PERCENT' 
-        ? `💳 Pago: Anticipo 50% (Ref ${state.paymentReference} - Bs. ${state.amountBs})`
-        : `💵 Pago: 100% Contra Entrega`;
-
       const decorLabel = config.decorations[state.selectedDecoration]?.label || 'Liso';
+      const colorNames = state.cakeColors.map(hex => config.colors.find(c => c.hex === hex)?.name || 'Personalizado').join(', ');
       
-      const detailedInfo = `🎂 PASTEL ${state.selectedSize?.diameter || '?'}cm (${state.selectedSize?.heightType})
-🍰 Bizcocho: ${state.selectedFlavor?.name || 'Vainilla'}
-🍦 Relleno: ${state.selectedFilling?.id === 'others' ? state.customFilling : (state.selectedFilling?.name || 'Clásico')}
+      const detailedInfo = `🎂 PASTEL ${state.selectedSize?.diameter}cm
+🍰 Bizcocho: ${state.selectedFlavor?.name}
+🍦 Relleno: ${state.selectedFilling?.id === 'others' ? state.customFilling : state.selectedFilling?.name}
 ✨ Estilo: ${decorLabel}
 🎨 Colores: ${colorNames}
 🎯 Cobertura: ${state.coverageType.toUpperCase()}
-🚀 Extras: ${state.topperType !== 'none' ? 'Topper '+state.topperType : 'Sin Topper'}${state.hasSpheres ? ', con Esferas' : ''}
-🎉 Evento: ${state.theme} p/ ${state.birthdayName} (${state.birthdayAge} años)
-📍 Entrega: ${state.deliveryMethod} - ${state.deliveryDate} ${state.deliveryTime}
-${paymentInfo}`;
+🚀 Extras: ${state.topperType !== 'none' ? 'Topper ' + state.topperType : 'Sin Topper'}${state.hasSpheres ? ', con Esferas' : ''}
+🎉 Temática: ${state.theme}
+📍 Entrega: ${state.deliveryMethod} - ${state.deliveryDate}`;
 
-      const simpleId = Math.random().toString(36).substr(2, 6).toUpperCase();
       const newOrder: Order = {
         id: simpleId,
         date: new Date().toLocaleString(),
@@ -243,141 +209,57 @@ ${paymentInfo}`;
         status: 'PENDING'
       };
 
-      const paymentSummary = state.paymentStrategy === 'FIFTY_PERCENT'
-        ? `💰 *RESUMEN DE PAGO*
-- Total: $${state.totalPrice.toFixed(2)}
-- Anticipo (50%): $${deposit.toFixed(2)}
-- Pendiente: $${deposit.toFixed(2)}`
-        : `💰 *RESUMEN DE PAGO*
-- Total a pagar al recibir: $${state.totalPrice.toFixed(2)}`;
-
-      const message = `🎂 *¡NUEVO PEDIDO DE PASTEL!* 🎂 (Ref: ${newOrder.id})
-
-${detailedInfo}
-
-${paymentSummary}`;
-
-      window.open(`https://wa.me/${config.appTheme.whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
-
-      setOrders(prev => [newOrder, ...prev]);
-      localStorage.setItem('cake_app_orders', JSON.stringify([newOrder, ...orders]));
-
       if (db) {
-        addDoc(collection(db, "orders"), newOrder).catch(console.error);
+        try {
+          await setDoc(doc(db, "orders", simpleId), newOrder);
+        } catch (fbErr: any) {
+          console.warn("No se pudo guardar en la base de datos por permisos, abriendo WhatsApp igualmente.", fbErr);
+        }
       }
 
-      setState(prev => ({
-        ...prev,
-        step: 'SUCCESS',
-        lastOrderId: newOrder.id,
-      }));
+      const message = `🎂 *NUEVO PEDIDO* (Ref: ${simpleId})\n\n${detailedInfo}\n\n💰 Total: $${state.totalPrice.toFixed(2)}`;
+      window.open(`https://wa.me/${config.appTheme.whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
 
-    } catch (error) {
-      alert("Error creando pedido.");
+      setState(prev => ({ ...prev, step: 'SUCCESS', lastOrderId: simpleId }));
+
+    } catch (error: any) {
+      console.error("Error crítico:", error);
+      alert("Error al procesar el pedido. Intenta de nuevo.");
     }
   };
 
-  const resetToStart = () => setState(prev => ({ ...prev, step: 'SIZE' }));
-  const goToAdminLogin = () => setState(prev => ({ ...prev, step: 'ADMIN_LOGIN' }));
-  const exitAdmin = () => setState(prev => ({ ...prev, step: 'SIZE' }));
-
-  const showBrandHeader = !['ADMIN_PANEL'].includes(state.step);
-
   return (
     <div className="w-full h-full flex flex-col font-quicksand overflow-hidden bg-background-light">
-        {showBrandHeader && (
+        {firebaseError && (
+          <div className="bg-red-600 text-white text-[10px] md:text-xs py-2 px-4 text-center font-black uppercase tracking-widest z-[200] flex flex-col items-center justify-center gap-1 shadow-2xl border-b-2 border-red-800">
+            <div className="flex items-center gap-2">
+              <span className="material-icons-round text-sm animate-pulse">error_outline</span>
+              {firebaseError}
+            </div>
+            <p className="opacity-70 text-[8px] md:text-[9px] font-bold">⚠️ Entra en Firebase Console -> Firestore -> pestaña 'Rules' y cambia 'if false' por 'if true'</p>
+          </div>
+        )}
+
+        {!['ADMIN_PANEL'].includes(state.step) && (
           <div className="w-full bg-primary h-16 md:h-20 flex items-center justify-center relative shrink-0 z-[60] shadow-md px-4">
-            <div className="max-w-7xl w-full flex items-center justify-center">
-               {config.appTheme.logoUrl ? (
+             {config.appTheme.logoUrl ? (
                 <img src={config.appTheme.logoUrl} className="h-10 md:h-14 object-contain" alt="Logo" />
               ) : (
-                <h2 className="font-display text-xl md:text-2xl text-white tracking-widest uppercase italic">
-                  {config.appTheme.brandName}
-                </h2>
+                <h2 className="font-display text-xl md:text-2xl text-white tracking-widest uppercase italic">{config.appTheme.brandName}</h2>
               )}
-            </div>
           </div>
         )}
 
         <div className="flex-1 overflow-hidden flex flex-col relative">
-          <div className="flex-1 overflow-hidden mx-auto w-full h-full max-w-7xl">
-            {state.step === 'SIZE' && (
-              <SizeStep 
-                selectedSize={state.selectedSize} 
-                onSelectSize={(s) => setState(prev => ({ ...prev, selectedSize: s }))} 
-                onNext={nextStep} 
-                onAdminClick={goToAdminLogin}
-                config={config}
-              />
-            )}
-            {state.step === 'FLAVOR' && (
-              <FlavorStep 
-                {...state} 
-                onSelectFlavor={(f) => setState(prev => ({ ...prev, selectedFlavor: f }))} 
-                onSelectFilling={(fill) => setState(prev => ({ ...prev, selectedFilling: fill }))} 
-                onNext={nextStep} 
-                onBack={prevStep} 
-                onCustomFillingChange={(v) => setState(s => ({...s, customFilling: v}))} 
-                config={config}
-              />
-            )}
-            {state.step === 'DECORATION' && (
-              <DecorationStep 
-                {...state} 
-                onUpdateDecoration={(d) => setState(prev => ({ ...prev, ...d }))} 
-                onNext={nextStep} 
-                onBack={prevStep} 
-                config={config}
-              />
-            )}
-            {state.step === 'PERSONALIZATION' && (
-              <PersonalizationStep 
-                appState={state} 
-                onUpdate={(d) => setState(prev => ({ ...prev, ...d }))} 
-                onNext={nextStep} 
-                onBack={prevStep} 
-              />
-            )}
-            {state.step === 'SUMMARY' && (
-              <SummaryStep 
-                appState={state} 
-                onUpdate={(d) => setState(prev => ({ ...prev, ...d }))} 
-                onBack={prevStep} 
-                onConfirm={nextStep} 
-                config={config} 
-              />
-            )}
-            {state.step === 'PAYMENT' && (
-              <PaymentStep 
-                {...state} 
-                config={config} 
-                onUpdatePayment={(d) => setState(s => ({...s, ...d}))} 
-                onBack={prevStep} 
-                onComplete={handleFinalizeOrder} 
-              />
-            )}
-            
-            {state.step === 'SUCCESS' && <SuccessStep orderId={state.lastOrderId || ''} onReset={resetToStart} config={config} />}
-            
-            {state.step === 'ADMIN_LOGIN' && (
-              <AdminLogin 
-                onLoginSuccess={() => setState(prev => ({ ...prev, step: 'ADMIN_PANEL' }))} 
-                onCancel={exitAdmin} 
-              />
-            )}
-          </div>
-          
-          {state.step === 'ADMIN_PANEL' && (
-            <div className="fixed inset-0 z-[100]">
-              <AdminPanel 
-                config={config} 
-                onUpdateConfig={handleUpdateConfig} 
-                orders={orders}
-                onClearOrders={handleClearOrders}
-                onExit={exitAdmin} 
-              />
-            </div>
-          )}
+            {state.step === 'SIZE' && <SizeStep selectedSize={state.selectedSize} onSelectSize={(s) => setState(p => ({...p, selectedSize: s}))} onNext={() => setState(p => ({...p, step: 'FLAVOR'}))} onAdminClick={() => setState(p => ({...p, step: 'ADMIN_LOGIN'}))} config={config} />}
+            {state.step === 'FLAVOR' && <FlavorStep {...state} onSelectFlavor={(f) => setState(p => ({...p, selectedFlavor: f}))} onSelectFilling={(fill) => setState(p => ({...p, selectedFilling: fill}))} onNext={() => setState(p => ({...p, step: 'DECORATION'}))} onBack={() => setState(p => ({...p, step: 'SIZE'}))} onCustomFillingChange={(v) => setState(p => ({...p, customFilling: v}))} config={config} />}
+            {state.step === 'DECORATION' && <DecorationStep {...state} onUpdateDecoration={(d) => setState(p => ({...p, ...d}))} onNext={() => setState(p => ({...p, step: 'PERSONALIZATION'}))} onBack={() => setState(p => ({...p, step: 'FLAVOR'}))} config={config} />}
+            {state.step === 'PERSONALIZATION' && <PersonalizationStep appState={state} onUpdate={(d) => setState(p => ({...p, ...d}))} onNext={() => setState(p => ({...p, step: 'SUMMARY'}))} onBack={() => setState(p => ({...p, step: 'DECORATION'}))} />}
+            {state.step === 'SUMMARY' && <SummaryStep appState={state} onUpdate={(d) => setState(p => ({...p, ...d}))} onBack={() => setState(p => ({...p, step: 'PERSONALIZATION'}))} onConfirm={() => setState(p => ({...p, step: 'PAYMENT'}))} config={config} />}
+            {state.step === 'PAYMENT' && <PaymentStep {...state} config={config} onUpdatePayment={(d) => setState(p => ({...p, ...d}))} onBack={() => setState(p => ({...p, step: 'SUMMARY'}))} onComplete={handleFinalizeOrder} />}
+            {state.step === 'SUCCESS' && <SuccessStep orderId={state.lastOrderId || ''} onReset={() => setState(p => ({...p, step: 'SIZE'}))} config={config} />}
+            {state.step === 'ADMIN_LOGIN' && <AdminLogin onLoginSuccess={() => setState(p => ({...p, step: 'ADMIN_PANEL'}))} onCancel={() => setState(p => ({...p, step: 'SIZE'}))} />}
+            {state.step === 'ADMIN_PANEL' && <div className="fixed inset-0 z-[100]"><AdminPanel config={config} onUpdateConfig={handleUpdateConfig} orders={orders} onClearOrders={() => {}} onExit={() => setState(p => ({...p, step: 'SIZE'}))} /></div>}
         </div>
     </div>
   );
