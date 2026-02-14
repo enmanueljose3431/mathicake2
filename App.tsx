@@ -49,6 +49,19 @@ const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
 
+  // --- MANEJADORES DE NAVEGACIÓN (Para evitar errores TS1382) ---
+  const navigateTo = (step: Step) => {
+    setState(prev => ({ ...prev, step }));
+  };
+
+  const updateAppState = (updates: Partial<AppState>) => {
+    setState(prev => ({ ...prev, ...updates }));
+  };
+
+  const resetApp = () => {
+    setState(prev => ({ ...prev, step: 'SIZE' }));
+  };
+
   // --- FIREBASE SYNC ---
   useEffect(() => {
     if (!db) return;
@@ -66,7 +79,7 @@ const App: React.FC = () => {
         setFirebaseError(null);
       } catch (e: any) {
         if (e.code === 'permission-denied') {
-          setFirebaseError("Firestore BLOQUEADO: Cambia 'if false' por 'if true' en la pestaña Rules de tu Firebase.");
+          setFirebaseError("Firestore BLOQUEADO: Revisa las reglas de seguridad.");
         }
         console.error("Error Firebase Init:", e);
       }
@@ -81,7 +94,7 @@ const App: React.FC = () => {
       }
     }, (err) => {
       if (err.code === 'permission-denied') {
-        setFirebaseError("PERMISOS DENEGADOS: Cambia 'if false' por 'if true' en tu consola de Firebase (Rules).");
+        setFirebaseError("PERMISOS DENEGADOS: Cambia 'if false' por 'if true' en la consola de Firebase.");
       }
     });
 
@@ -95,9 +108,8 @@ const App: React.FC = () => {
       setFirebaseError(null);
     }, (err) => {
       if (err.code === 'permission-denied') {
-        setFirebaseError("Firestore BLOQUEADO: No se pueden cargar pedidos por reglas de seguridad.");
+        setFirebaseError("Firestore BLOQUEADO: No se pueden cargar pedidos.");
       }
-      console.error("Error en escucha de pedidos:", err);
     });
 
     return () => {
@@ -166,7 +178,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     setState(prev => ({ ...prev, totalPrice: calculateTotal() }));
-  }, [state.selectedSize, state.selectedFlavor, state.selectedFilling, state.selectedDecoration, state.coverageType, state.topperType, state.hasSpheres, state.cakeColors, config]);
+  }, [state.selectedSize, state.selectedFlavor, state.selectedFilling, state.selectedDecoration, state.coverageType, state.topperType, state.hasSpheres, state.cakeColors, config, calculateTotal]);
 
   const handleUpdateConfig = async (newConfig: AppConfig) => {
     setConfig(newConfig);
@@ -175,7 +187,7 @@ const App: React.FC = () => {
         await setDoc(doc(db, "settings", "appConfig"), newConfig);
       } catch (e: any) {
         if (e.code === 'permission-denied') {
-          alert("ERROR DE PERMISOS: No se guardó en Firebase. Cambia 'if false' por 'if true' en tu consola de Firebase.");
+          alert("ERROR DE PERMISOS: No se guardó en Firebase. Cambia las reglas a 'if true'.");
         } else {
           alert("Error al guardar: " + e.message);
         }
@@ -213,7 +225,7 @@ const App: React.FC = () => {
         try {
           await setDoc(doc(db, "orders", simpleId), newOrder);
         } catch (fbErr: any) {
-          console.warn("No se pudo guardar en la base de datos por permisos, abriendo WhatsApp igualmente.", fbErr);
+          console.warn("No se pudo guardar en DB, abriendo WhatsApp.", fbErr);
         }
       }
 
@@ -224,7 +236,7 @@ const App: React.FC = () => {
 
     } catch (error: any) {
       console.error("Error crítico:", error);
-      alert("Error al procesar el pedido. Intenta de nuevo.");
+      alert("Error al procesar el pedido.");
     }
   };
 
@@ -236,7 +248,7 @@ const App: React.FC = () => {
               <span className="material-icons-round text-sm animate-pulse">error_outline</span>
               {firebaseError}
             </div>
-            <p className="opacity-70 text-[8px] md:text-[9px] font-bold">⚠️ Entra en Firebase Console -> Firestore -> pestaña 'Rules' y cambia 'if false' por 'if true'</p>
+            <p className="opacity-70 text-[8px] md:text-[9px] font-bold">⚠️ Entra en Firebase Console y cambia las reglas Rules a 'if true'</p>
           </div>
         )}
 
@@ -251,15 +263,25 @@ const App: React.FC = () => {
         )}
 
         <div className="flex-1 overflow-hidden flex flex-col relative">
-            {state.step === 'SIZE' && <SizeStep selectedSize={state.selectedSize} onSelectSize={(s) => setState(p => ({...p, selectedSize: s}))} onNext={() => setState(p => ({...p, step: 'FLAVOR'}))} onAdminClick={() => setState(p => ({...p, step: 'ADMIN_LOGIN'}))} config={config} />}
-            {state.step === 'FLAVOR' && <FlavorStep {...state} onSelectFlavor={(f) => setState(p => ({...p, selectedFlavor: f}))} onSelectFilling={(fill) => setState(p => ({...p, selectedFilling: fill}))} onNext={() => setState(p => ({...p, step: 'DECORATION'}))} onBack={() => setState(p => ({...p, step: 'SIZE'}))} onCustomFillingChange={(v) => setState(p => ({...p, customFilling: v}))} config={config} />}
-            {state.step === 'DECORATION' && <DecorationStep {...state} onUpdateDecoration={(d) => setState(p => ({...p, ...d}))} onNext={() => setState(p => ({...p, step: 'PERSONALIZATION'}))} onBack={() => setState(p => ({...p, step: 'FLAVOR'}))} config={config} />}
-            {state.step === 'PERSONALIZATION' && <PersonalizationStep appState={state} onUpdate={(d) => setState(p => ({...p, ...d}))} onNext={() => setState(p => ({...p, step: 'SUMMARY'}))} onBack={() => setState(p => ({...p, step: 'DECORATION'}))} />}
-            {state.step === 'SUMMARY' && <SummaryStep appState={state} onUpdate={(d) => setState(p => ({...p, ...d}))} onBack={() => setState(p => ({...p, step: 'PERSONALIZATION'}))} onConfirm={() => setState(p => ({...p, step: 'PAYMENT'}))} config={config} />}
-            {state.step === 'PAYMENT' && <PaymentStep {...state} config={config} onUpdatePayment={(d) => setState(p => ({...p, ...d}))} onBack={() => setState(p => ({...p, step: 'SUMMARY'}))} onComplete={handleFinalizeOrder} />}
-            {state.step === 'SUCCESS' && <SuccessStep orderId={state.lastOrderId || ''} onReset={() => setState(p => ({...p, step: 'SIZE'}))} config={config} />}
-            {state.step === 'ADMIN_LOGIN' && <AdminLogin onLoginSuccess={() => setState(p => ({...p, step: 'ADMIN_PANEL'}))} onCancel={() => setState(p => ({...p, step: 'SIZE'}))} />}
-            {state.step === 'ADMIN_PANEL' && <div className="fixed inset-0 z-[100]"><AdminPanel config={config} onUpdateConfig={handleUpdateConfig} orders={orders} onClearOrders={() => {}} onExit={() => setState(p => ({...p, step: 'SIZE'}))} /></div>}
+            {state.step === 'SIZE' && <SizeStep selectedSize={state.selectedSize} onSelectSize={(s) => updateAppState({selectedSize: s})} onNext={() => navigateTo('FLAVOR')} onAdminClick={() => navigateTo('ADMIN_LOGIN')} config={config} />}
+            {state.step === 'FLAVOR' && <FlavorStep {...state} onSelectFlavor={(f) => updateAppState({selectedFlavor: f})} onSelectFilling={(fill) => updateAppState({selectedFilling: fill})} onNext={() => navigateTo('DECORATION')} onBack={() => navigateTo('SIZE')} onCustomFillingChange={(v) => updateAppState({customFilling: v})} config={config} />}
+            {state.step === 'DECORATION' && <DecorationStep {...state} onUpdateDecoration={(d) => updateAppState(d)} onNext={() => navigateTo('PERSONALIZATION')} onBack={() => navigateTo('FLAVOR')} config={config} />}
+            {state.step === 'PERSONALIZATION' && <PersonalizationStep appState={state} onUpdate={(d) => updateAppState(d)} onNext={() => navigateTo('SUMMARY')} onBack={() => navigateTo('DECORATION')} />}
+            {state.step === 'SUMMARY' && <SummaryStep appState={state} onUpdate={(d) => updateAppState(d)} onBack={() => navigateTo('PERSONALIZATION')} onConfirm={() => navigateTo('PAYMENT')} config={config} />}
+            {state.step === 'PAYMENT' && <PaymentStep {...state} config={config} onUpdatePayment={(d) => updateAppState(d)} onBack={() => navigateTo('SUMMARY')} onComplete={handleFinalizeOrder} />}
+            {state.step === 'SUCCESS' && <SuccessStep orderId={state.lastOrderId || ''} onReset={resetApp} config={config} />}
+            {state.step === 'ADMIN_LOGIN' && <AdminLogin onLoginSuccess={() => navigateTo('ADMIN_PANEL')} onCancel={resetApp} />}
+            {state.step === 'ADMIN_PANEL' && (
+              <div className="fixed inset-0 z-[100]">
+                <AdminPanel 
+                  config={config} 
+                  onUpdateConfig={handleUpdateConfig} 
+                  orders={orders} 
+                  onClearOrders={() => {}} 
+                  onExit={resetApp} 
+                />
+              </div>
+            )}
         </div>
     </div>
   );
