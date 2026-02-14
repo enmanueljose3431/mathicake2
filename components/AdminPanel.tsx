@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { AppConfig, Order, CakeSize, Flavor, Filling, DecorationInfo, CakeColor } from '../types';
+import { AppConfig, Order, CakeSize, Flavor, Filling, DecorationInfo } from '../types';
 
 interface AdminPanelProps {
   config: AppConfig;
@@ -181,7 +181,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
                        </div>
                        <div>
                          <label className="text-[8px] font-black uppercase text-slate-400">Multiplicador</label>
-                         <input type="number" step="0.1" className="w-full bg-slate-50 rounded-xl p-3 font-bold border-none text-primary text-sm" value={s.costMultiplier} onChange={(e) => updateSize(s.id, 'costMultiplier', parseFloat(e.target.value))} />
+                         <input type="number" step="0.1" className="w-full bg-slate-50 rounded-xl p-3 font-bold border-none text-primary text-sm" value={s.costMultiplier} onChange={(e) => updateConfig({ sizes: config.sizes.map(sz => sz.id === s.id ? { ...sz, costMultiplier: parseFloat(e.target.value) } : sz) })} />
                        </div>
                     </div>
                   </div>
@@ -264,6 +264,74 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, orders,
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {activeTab === 'PRICES' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <section className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
+                   <h3 className="font-black uppercase text-xs border-l-4 border-primary pl-4 mb-6">Precios de Toppers ($)</h3>
+                   <div className="space-y-4">
+                      {Object.keys(config.topperPrices).map(key => (
+                        <div key={key} className="flex items-center justify-between gap-4">
+                           <span className="text-[10px] font-black uppercase text-slate-500">{key === 'none' ? 'Sin Topper' : key === 'generic' ? 'Genérico' : key === 'personalized' ? 'Personalizado' : 'Topper + Piezas'}</span>
+                           <input 
+                            type="number" 
+                            className="w-24 bg-slate-50 rounded-xl p-3 font-black text-primary text-right border-none" 
+                            value={config.topperPrices[key]} 
+                            onChange={(e) => updateConfig({ topperPrices: { ...config.topperPrices, [key]: parseFloat(e.target.value) } })} 
+                           />
+                        </div>
+                      ))}
+                   </div>
+                </section>
+
+                <section className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
+                   <h3 className="font-black uppercase text-xs border-l-4 border-slate-400 pl-4 mb-6">Recargos Especiales ($)</h3>
+                   <div className="space-y-6">
+                      <div className="flex items-center justify-between gap-4">
+                         <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase text-slate-800">Esferas Decorativas</span>
+                            <span className="text-[8px] text-slate-400 font-bold uppercase">Precio por set</span>
+                         </div>
+                         <input 
+                          type="number" 
+                          className="w-24 bg-slate-900 text-white rounded-xl p-3 font-black text-right border-none" 
+                          value={config.spheresPrice} 
+                          onChange={(e) => updateConfig({ spheresPrice: parseFloat(e.target.value) })} 
+                         />
+                      </div>
+                      <div className="flex items-center justify-between gap-4">
+                         <div className="flex flex-col">
+                            <span className="text-[10px] font-black uppercase text-slate-800">Colores Saturados</span>
+                            <span className="text-[8px] text-slate-400 font-bold uppercase">Recargo base</span>
+                         </div>
+                         <input 
+                          type="number" 
+                          className="w-24 bg-slate-900 text-white rounded-xl p-3 font-black text-right border-none" 
+                          value={config.saturatedColorSurcharge} 
+                          onChange={(e) => updateConfig({ saturatedColorSurcharge: parseFloat(e.target.value) })} 
+                         />
+                      </div>
+                   </div>
+                </section>
+
+                <section className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6 md:col-span-2">
+                   <h3 className="font-black uppercase text-xs border-l-4 border-slate-400 pl-4 mb-6">Recargos de Cobertura ($)</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                      {Object.keys(config.coverageSurcharges).map(key => (
+                        <div key={key} className="flex items-center justify-between gap-4 bg-slate-50 p-4 rounded-2xl">
+                           <span className="text-[10px] font-black uppercase text-slate-600">{key}</span>
+                           <input 
+                            type="number" 
+                            className="w-20 bg-white rounded-xl p-2 font-black text-primary text-right border-none" 
+                            value={config.coverageSurcharges[key]} 
+                            onChange={(e) => updateConfig({ coverageSurcharges: { ...config.coverageSurcharges, [key]: parseFloat(e.target.value) } })} 
+                           />
+                        </div>
+                      ))}
+                   </div>
+                </section>
               </div>
             )}
 

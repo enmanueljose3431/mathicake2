@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Step, AppState, AppConfig, Order } from './types';
+import { Step, AppState, AppConfig, Order, CakeSize, Flavor, Filling } from './types';
 import { CAKE_SIZES, FLAVORS, FILLINGS, DECORATIONS, TOPPER_PRICES, SPHERES_PRICE, CAKE_COLORS, SATURATED_COLOR_SURCHARGE } from './constants';
 import SizeStep from './components/SizeStep';
 import FlavorStep from './components/FlavorStep';
@@ -49,25 +49,38 @@ const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
 
-  // --- MANEJADORES DE NAVEGACIÓN (Para evitar errores TS1382) ---
-  const navigateTo = (step: Step) => {
-    setState(prev => ({ ...prev, step }));
-  };
+  // --- NAVEGACIÓN Y ESTADO ---
+  const navigateTo = (step: Step) => setState(prev => ({ ...prev, step }));
+  const updateAppState = (updates: Partial<AppState>) => setState(prev => ({ ...prev, ...updates }));
+  const resetApp = () => setState(prev => ({ ...prev, step: 'SIZE' }));
 
-  const updateAppState = (updates: Partial<AppState>) => {
-    setState(prev => ({ ...prev, ...updates }));
-  };
+  // Handlers específicos para evitar errores de sintaxis en JSX
+  const handleSelectSize = (s: CakeSize) => updateAppState({ selectedSize: s });
+  const handleGoToFlavor = () => navigateTo('FLAVOR');
+  const handleGoToAdminLogin = () => navigateTo('ADMIN_LOGIN');
+  
+  const handleSelectFlavor = (f: Flavor) => updateAppState({ selectedFlavor: f });
+  const handleSelectFilling = (fill: Filling) => updateAppState({ selectedFilling: fill });
+  const handleGoToDecoration = () => navigateTo('DECORATION');
+  const handleGoToSize = () => navigateTo('SIZE');
+  const handleCustomFillingChange = (v: string) => updateAppState({ customFilling: v });
 
-  const resetApp = () => {
-    setState(prev => ({ ...prev, step: 'SIZE' }));
-  };
+  const handleUpdateDecoration = (d: Partial<AppState>) => updateAppState(d);
+  const handleGoToPersonalization = () => navigateTo('PERSONALIZATION');
+  
+  const handleUpdatePersonalization = (d: Partial<AppState>) => updateAppState(d);
+  const handleGoToSummary = () => navigateTo('SUMMARY');
+
+  const handleUpdateSummary = (d: Partial<AppState>) => updateAppState(d);
+  const handleGoToPayment = () => navigateTo('PAYMENT');
+
+  const handleUpdatePayment = (d: any) => updateAppState(d);
+  const handleLoginSuccess = () => navigateTo('ADMIN_PANEL');
 
   // --- FIREBASE SYNC ---
   useEffect(() => {
     if (!db) return;
-
     const configDocRef = doc(db, "settings", "appConfig");
-
     const initConfig = async () => {
       try {
         const docSnap = await getDoc(configDocRef);
@@ -78,44 +91,23 @@ const App: React.FC = () => {
         }
         setFirebaseError(null);
       } catch (e: any) {
-        if (e.code === 'permission-denied') {
-          setFirebaseError("Firestore BLOQUEADO: Revisa las reglas de seguridad.");
-        }
-        console.error("Error Firebase Init:", e);
+        if (e.code === 'permission-denied') setFirebaseError("Firestore BLOQUEADO");
       }
     };
-
     initConfig();
 
     const unsubscribeConfig = onSnapshot(configDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setConfig(prev => ({ ...prev, ...docSnap.data() }));
-        setFirebaseError(null);
-      }
-    }, (err) => {
-      if (err.code === 'permission-denied') {
-        setFirebaseError("PERMISOS DENEGADOS: Cambia 'if false' por 'if true' en la consola de Firebase.");
-      }
-    });
+      if (docSnap.exists()) setConfig(prev => ({ ...prev, ...docSnap.data() }));
+    }, (err) => { if (err.code === 'permission-denied') setFirebaseError("Firestore BLOQUEADO"); });
 
     const unsubscribeOrders = onSnapshot(collection(db, "orders"), (snapshot) => {
       const remoteOrders: Order[] = [];
-      snapshot.forEach((doc) => {
-        remoteOrders.push({ ...doc.data(), id: doc.id } as Order);
-      });
+      snapshot.forEach((doc) => { remoteOrders.push({ ...doc.data(), id: doc.id } as Order); });
       remoteOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setOrders(remoteOrders);
-      setFirebaseError(null);
-    }, (err) => {
-      if (err.code === 'permission-denied') {
-        setFirebaseError("Firestore BLOQUEADO: No se pueden cargar pedidos.");
-      }
     });
 
-    return () => {
-      unsubscribeConfig();
-      unsubscribeOrders();
-    };
+    return () => { unsubscribeConfig(); unsubscribeOrders(); };
   }, []);
 
   // --- THEME ---
@@ -160,19 +152,10 @@ const App: React.FC = () => {
     const filling = config.fillings.find(f => f.id === state.selectedFilling?.id) || config.fillings[0];
     const decor = config.decorations[state.selectedDecoration] || { priceModifier: 0 };
     const factor = size.costMultiplier || 1.0;
-
-    let total = size.basePrice + 
-                (flavor.priceModifier * factor) + 
-                (filling.priceModifier * factor) + 
-                (decor.priceModifier * factor) + 
-                (config.coverageSurcharges[state.coverageType] * factor) + 
-                (config.topperPrices[state.topperType] || 0);
-
+    let total = size.basePrice + (flavor.priceModifier * factor) + (filling.priceModifier * factor) + (decor.priceModifier * factor) + (config.coverageSurcharges[state.coverageType] * factor) + (config.topperPrices[state.topperType] || 0);
     if (state.hasSpheres) total += (config.spheresPrice * factor);
-    
     const hasSaturated = state.cakeColors.some(hex => config.colors.find(c => c.hex === hex)?.isSaturated);
     if (hasSaturated) total += (config.saturatedColorSurcharge * factor);
-    
     return total;
   }, [state, config]);
 
@@ -182,106 +165,46 @@ const App: React.FC = () => {
 
   const handleUpdateConfig = async (newConfig: AppConfig) => {
     setConfig(newConfig);
-    if (db) {
-      try {
-        await setDoc(doc(db, "settings", "appConfig"), newConfig);
-      } catch (e: any) {
-        if (e.code === 'permission-denied') {
-          alert("ERROR DE PERMISOS: No se guardó en Firebase. Cambia las reglas a 'if true'.");
-        } else {
-          alert("Error al guardar: " + e.message);
-        }
-      }
-    }
+    if (db) await setDoc(doc(db, "settings", "appConfig"), newConfig);
   };
 
   const handleFinalizeOrder = async () => {
     const simpleId = Math.random().toString(36).substr(2, 6).toUpperCase();
-    
     try {
       const decorLabel = config.decorations[state.selectedDecoration]?.label || 'Liso';
       const colorNames = state.cakeColors.map(hex => config.colors.find(c => c.hex === hex)?.name || 'Personalizado').join(', ');
-      
-      const detailedInfo = `🎂 PASTEL ${state.selectedSize?.diameter}cm
-🍰 Bizcocho: ${state.selectedFlavor?.name}
-🍦 Relleno: ${state.selectedFilling?.id === 'others' ? state.customFilling : state.selectedFilling?.name}
-✨ Estilo: ${decorLabel}
-🎨 Colores: ${colorNames}
-🎯 Cobertura: ${state.coverageType.toUpperCase()}
-🚀 Extras: ${state.topperType !== 'none' ? 'Topper ' + state.topperType : 'Sin Topper'}${state.hasSpheres ? ', con Esferas' : ''}
-🎉 Temática: ${state.theme}
-📍 Entrega: ${state.deliveryMethod} - ${state.deliveryDate}`;
-
-      const newOrder: Order = {
-        id: simpleId,
-        date: new Date().toLocaleString(),
-        customerName: state.birthdayName || 'Cliente Web',
-        details: detailedInfo,
-        total: state.totalPrice,
-        status: 'PENDING'
-      };
-
-      if (db) {
-        try {
-          await setDoc(doc(db, "orders", simpleId), newOrder);
-        } catch (fbErr: any) {
-          console.warn("No se pudo guardar en DB, abriendo WhatsApp.", fbErr);
-        }
-      }
-
-      const message = `🎂 *NUEVO PEDIDO* (Ref: ${simpleId})\n\n${detailedInfo}\n\n💰 Total: $${state.totalPrice.toFixed(2)}`;
-      window.open(`https://wa.me/${config.appTheme.whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
-
+      const detailedInfo = `🎂 PASTEL ${state.selectedSize?.diameter}cm\n🍰 Bizcocho: ${state.selectedFlavor?.name}\n🍦 Relleno: ${state.selectedFilling?.id === 'others' ? state.customFilling : state.selectedFilling?.name}\n✨ Estilo: ${decorLabel}\n🎨 Colores: ${colorNames}\n🎯 Cobertura: ${state.coverageType.toUpperCase()}\n🚀 Extras: ${state.topperType !== 'none' ? 'Topper ' + state.topperType : 'Sin Topper'}${state.hasSpheres ? ', con Esferas' : ''}\n🎉 Temática: ${state.theme}\n📍 Entrega: ${state.deliveryMethod} - ${state.deliveryDate}`;
+      const newOrder: Order = { id: simpleId, date: new Date().toLocaleString(), customerName: state.birthdayName || 'Cliente Web', details: detailedInfo, total: state.totalPrice, status: 'PENDING' };
+      if (db) await setDoc(doc(db, "orders", simpleId), newOrder);
+      window.open(`https://wa.me/${config.appTheme.whatsappNumber}?text=${encodeURIComponent(`🎂 *NUEVO PEDIDO* (Ref: ${simpleId})\n\n${detailedInfo}\n\n💰 Total: $${state.totalPrice.toFixed(2)}`)}`, '_blank');
       setState(prev => ({ ...prev, step: 'SUCCESS', lastOrderId: simpleId }));
-
-    } catch (error: any) {
-      console.error("Error crítico:", error);
-      alert("Error al procesar el pedido.");
-    }
+    } catch (error) { console.error("Error crítico:", error); }
   };
 
   return (
     <div className="w-full h-full flex flex-col font-quicksand overflow-hidden bg-background-light">
         {firebaseError && (
           <div className="bg-red-600 text-white text-[10px] md:text-xs py-2 px-4 text-center font-black uppercase tracking-widest z-[200] flex flex-col items-center justify-center gap-1 shadow-2xl border-b-2 border-red-800">
-            <div className="flex items-center gap-2">
-              <span className="material-icons-round text-sm animate-pulse">error_outline</span>
-              {firebaseError}
-            </div>
-            <p className="opacity-70 text-[8px] md:text-[9px] font-bold">⚠️ Entra en Firebase Console y cambia las reglas Rules a 'if true'</p>
+            <div className="flex items-center gap-2"><span className="material-icons-round text-sm animate-pulse">error_outline</span>{firebaseError}</div>
           </div>
         )}
 
         {!['ADMIN_PANEL'].includes(state.step) && (
           <div className="w-full bg-primary h-16 md:h-20 flex items-center justify-center relative shrink-0 z-[60] shadow-md px-4">
-             {config.appTheme.logoUrl ? (
-                <img src={config.appTheme.logoUrl} className="h-10 md:h-14 object-contain" alt="Logo" />
-              ) : (
-                <h2 className="font-display text-xl md:text-2xl text-white tracking-widest uppercase italic">{config.appTheme.brandName}</h2>
-              )}
+             {config.appTheme.logoUrl ? <img src={config.appTheme.logoUrl} className="h-10 md:h-14 object-contain" alt="Logo" /> : <h2 className="font-display text-xl md:text-2xl text-white tracking-widest uppercase italic">{config.appTheme.brandName}</h2>}
           </div>
         )}
 
         <div className="flex-1 overflow-hidden flex flex-col relative">
-            {state.step === 'SIZE' && <SizeStep selectedSize={state.selectedSize} onSelectSize={(s) => updateAppState({selectedSize: s})} onNext={() => navigateTo('FLAVOR')} onAdminClick={() => navigateTo('ADMIN_LOGIN')} config={config} />}
-            {state.step === 'FLAVOR' && <FlavorStep {...state} onSelectFlavor={(f) => updateAppState({selectedFlavor: f})} onSelectFilling={(fill) => updateAppState({selectedFilling: fill})} onNext={() => navigateTo('DECORATION')} onBack={() => navigateTo('SIZE')} onCustomFillingChange={(v) => updateAppState({customFilling: v})} config={config} />}
-            {state.step === 'DECORATION' && <DecorationStep {...state} onUpdateDecoration={(d) => updateAppState(d)} onNext={() => navigateTo('PERSONALIZATION')} onBack={() => navigateTo('FLAVOR')} config={config} />}
-            {state.step === 'PERSONALIZATION' && <PersonalizationStep appState={state} onUpdate={(d) => updateAppState(d)} onNext={() => navigateTo('SUMMARY')} onBack={() => navigateTo('DECORATION')} />}
-            {state.step === 'SUMMARY' && <SummaryStep appState={state} onUpdate={(d) => updateAppState(d)} onBack={() => navigateTo('PERSONALIZATION')} onConfirm={() => navigateTo('PAYMENT')} config={config} />}
-            {state.step === 'PAYMENT' && <PaymentStep {...state} config={config} onUpdatePayment={(d) => updateAppState(d)} onBack={() => navigateTo('SUMMARY')} onComplete={handleFinalizeOrder} />}
+            {state.step === 'SIZE' && <SizeStep selectedSize={state.selectedSize} onSelectSize={handleSelectSize} onNext={handleGoToFlavor} onAdminClick={handleGoToAdminLogin} config={config} />}
+            {state.step === 'FLAVOR' && <FlavorStep {...state} onSelectFlavor={handleSelectFlavor} onSelectFilling={handleSelectFilling} onNext={handleGoToDecoration} onBack={handleGoToSize} onCustomFillingChange={handleCustomFillingChange} config={config} />}
+            {state.step === 'DECORATION' && <DecorationStep {...state} onUpdateDecoration={handleUpdateDecoration} onNext={handleGoToPersonalization} onBack={handleGoToFlavor} config={config} />}
+            {state.step === 'PERSONALIZATION' && <PersonalizationStep appState={state} onUpdate={handleUpdatePersonalization} onNext={handleGoToSummary} onBack={handleGoToDecoration} />}
+            {state.step === 'SUMMARY' && <SummaryStep appState={state} onUpdate={handleUpdateSummary} onBack={handleGoToPersonalization} onConfirm={handleGoToPayment} config={config} />}
+            {state.step === 'PAYMENT' && <PaymentStep {...state} config={config} onUpdatePayment={handleUpdatePayment} onBack={handleGoToSummary} onComplete={handleFinalizeOrder} />}
             {state.step === 'SUCCESS' && <SuccessStep orderId={state.lastOrderId || ''} onReset={resetApp} config={config} />}
-            {state.step === 'ADMIN_LOGIN' && <AdminLogin onLoginSuccess={() => navigateTo('ADMIN_PANEL')} onCancel={resetApp} />}
-            {state.step === 'ADMIN_PANEL' && (
-              <div className="fixed inset-0 z-[100]">
-                <AdminPanel 
-                  config={config} 
-                  onUpdateConfig={handleUpdateConfig} 
-                  orders={orders} 
-                  onClearOrders={() => {}} 
-                  onExit={resetApp} 
-                />
-              </div>
-            )}
+            {state.step === 'ADMIN_LOGIN' && <AdminLogin onLoginSuccess={handleLoginSuccess} onCancel={resetApp} />}
+            {state.step === 'ADMIN_PANEL' && <div className="fixed inset-0 z-[100]"><AdminPanel config={config} onUpdateConfig={handleUpdateConfig} orders={orders} onClearOrders={() => {}} onExit={resetApp} /></div>}
         </div>
     </div>
   );
