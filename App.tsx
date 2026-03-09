@@ -401,13 +401,19 @@ const App: React.FC = () => {
       
       // Sync to Google Sheets
       try {
-        await fetch('/api/sync-order', {
+        const res = await fetch('/api/sync-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newOrder)
         });
+        if (!res.ok) {
+          const err = await res.json();
+          console.warn("Google Sheets sync failed:", err.message || err.error);
+        } else {
+          console.log("✅ Order synced to Google Sheets");
+        }
       } catch (e) {
-        console.warn("Google Sheets sync failed, but order was saved to Firestore:", e);
+        console.warn("Google Sheets sync network error:", e);
       }
 
       window.open(`https://wa.me/${config.appTheme.whatsappNumber}?text=${encodeURIComponent(`🎂 *NUEVO PEDIDO* (Ref: ${simpleId})\n\n${detailedInfo}\n\n💰 Total: $${state.totalPrice.toFixed(2)}`)}`, '_blank');
