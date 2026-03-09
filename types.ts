@@ -1,0 +1,165 @@
+
+export type Step = 'SIZE' | 'FLAVOR' | 'DECORATION' | 'PERSONALIZATION' | 'SUMMARY' | 'PAYMENT' | 'SUCCESS' | 'ADMIN_LOGIN' | 'ADMIN_PANEL' | 'AUTH' | 'USER_DASHBOARD';
+
+export type HeightType = 'TALL' | 'SHORT';
+export type DeliveryMethod = 'DELIVERY' | 'PICKUP';
+export type CoverageType = 'chantilly' | 'chocolate' | 'arequipe';
+export type PaymentStrategy = 'FIFTY_PERCENT' | 'FULL_ON_DELIVERY';
+
+export interface CakeColor {
+  [key: string]: any;
+  name: string;
+  hex: string;
+  isSaturated?: boolean;
+  priceModifier?: number;
+}
+
+export interface CakeSize {
+  [key: string]: any;
+  id: string;
+  diameter: number;
+  heightType: HeightType;
+  portions: string;
+  basePrice: number;
+  costMultiplier: number; 
+}
+
+export interface Flavor {
+  [key: string]: any;
+  id: string;
+  name: string;
+  color: string;
+  priceModifier: number;
+  pattern?: string;
+  textureUrl?: string;
+}
+
+export interface Filling {
+  [key: string]: any;
+  id: string;
+  name: string;
+  color: string;
+  priceModifier: number;
+  pattern?: string;
+  textureUrl?: string;
+}
+
+export type DecorationStyle = string; // Cambiado de unión a string para flexibilidad
+export type TopperType = 'none' | 'generic' | 'personalized' | 'plus_pieces';
+
+export interface DecorationInfo {
+  [key: string]: any;
+  id: DecorationStyle;
+  label: string;
+  priceModifier: number;
+  textureUrl?: string;
+}
+
+export interface InspirationImage {
+  url: string;
+  style: string;
+  description?: string;
+}
+
+export interface PaymentDetails {
+  bankName: string;
+  accountHolder: string;
+  zelleEmail: string;
+  taxId: string;
+  exchangeRateNote: string;
+}
+
+export interface AppTheme {
+  brandName: string;
+  logoUrl?: string;
+  whatsappNumber: string;
+  primaryColor: string;
+  secondaryColor: string;
+  backgroundColor: string;
+  textColor: string;
+  surfaceColor: string;
+}
+
+export interface AppConfig {
+  sizes: CakeSize[];
+  flavors: Flavor[];
+  fillings: Filling[];
+  colors: CakeColor[];
+  decorations: Record<string, DecorationInfo>;
+  topperPrices: Record<string, number>;
+  spheresPrice: number;
+  saturatedColorSurcharge: number;
+  coverageSurcharges: Record<string, number>;
+  paymentDetails: PaymentDetails;
+  appTheme: AppTheme;
+  inspirationGallery: InspirationImage[];
+}
+
+export interface Order {
+  id: string;
+  userId?: string;
+  date: string;
+  customerName: string;
+  details: string;
+  total: number;
+  status: 'PENDING' | 'COMPLETED';
+  referenceImage?: string;
+  paymentProof?: string;
+  paymentDate?: string;
+  paymentStrategy?: PaymentStrategy;
+  deliveryDate?: string;
+  deliveryTime?: string;
+  deliveryMethod?: DeliveryMethod;
+  // Campos para reconstrucción/modificación
+  selectedSizeId?: string;
+  selectedFlavorId?: string;
+  selectedFillingId?: string;
+  selectedDecorationId?: string;
+  cakeColors?: string[];
+  topperType?: TopperType;
+  hasSpheres?: boolean;
+  theme?: string;
+  birthdayName?: string;
+  birthdayAge?: string;
+  specialRequirements?: string;
+  coverageType?: CoverageType;
+  customFilling?: string;
+}
+
+export interface Notification {
+  id: string;
+  orderId: string;
+  userId: string;
+  userName: string;
+  type: 'ORDER_MODIFIED' | 'NEW_ORDER';
+  message: string;
+  timestamp: string;
+  read: boolean;
+}
+
+export interface AppState {
+  step: Step;
+  selectedSize: CakeSize | null;
+  selectedFlavor: Flavor | null;
+  selectedFilling: Filling | null;
+  selectedDecoration: DecorationStyle;
+  cakeColors: string[];
+  topperType: TopperType;
+  hasSpheres: boolean;
+  theme: string;
+  birthdayName: string;
+  birthdayAge: string;
+  specialRequirements: string;
+  referenceImage: string | null;
+  paymentReference: string;
+  amountBs: string;
+  paymentProof: string | null;
+  deliveryMethod: DeliveryMethod;
+  deliveryDate: string;
+  deliveryTime: string;
+  coverageType: CoverageType;
+  totalPrice: number;
+  customFilling: string;
+  lastOrderId?: string;
+  paymentStrategy: PaymentStrategy;
+}

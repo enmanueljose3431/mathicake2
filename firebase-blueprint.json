@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "Order": {
+      "title": "Order",
+      "description": "A cake order placed by a customer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string" },
+        "customerName": { "type": "string" },
+        "details": { "type": "string" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["PENDING", "COMPLETED"] },
+        "paymentDate": { "type": "string" },
+        "selectedSizeId": { "type": "string" },
+        "selectedFlavorId": { "type": "string" },
+        "selectedFillingId": { "type": "string" },
+        "specialRequirements": { "type": "string" }
+      },
+      "required": ["id", "date", "customerName", "details", "total", "status"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Admin notification for order changes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "type": { "type": "string", "enum": ["ORDER_MODIFIED", "NEW_ORDER"] },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "read": { "type": "boolean" }
+      },
+      "required": ["id", "orderId", "userId", "userName", "type", "message", "timestamp", "read"]
+    },
+    "AppConfig": {
+      "title": "AppConfig",
+      "description": "Application configuration and settings",
+      "type": "object",
+      "properties": {
+        "sizes": { "type": "array" },
+        "flavors": { "type": "array" },
+        "fillings": { "type": "array" },
+        "colors": { "type": "array" },
+        "decorations": { "type": "object" },
+        "topperPrices": { "type": "object" },
+        "spheresPrice": { "type": "number" },
+        "saturatedColorSurcharge": { "type": "number" },
+        "coverageSurcharges": { "type": "object" },
+        "paymentDetails": { "type": "object" },
+        "appTheme": { "type": "object" }
+      }
+    }
+  },
+  "firestore": {
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Collection of customer orders"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Collection of admin notifications"
+    },
+    "/settings/appConfig": {
+      "schema": "AppConfig",
+      "description": "Global application configuration"
+    }
+  }
+}

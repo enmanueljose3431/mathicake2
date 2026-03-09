@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "enmanueljose3431@gmail.com");
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Settings: Everyone can read, only admin can write
+    match /settings/appConfig {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Orders: Everyone can create, only admin can read/update/delete
+    match /orders/{orderId} {
+      allow create: if true; // Allow customers to place orders
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid && resource.data.status == 'PENDING');
+      allow delete: if isAdmin();
+    }
+
+    // Notifications: Only admin can read/write
+    match /notifications/{notificationId} {
+      allow read, write: if isAdmin();
+      allow create: if isAuthenticated(); // Allow users to trigger notifications on modification
+    }
+    
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
