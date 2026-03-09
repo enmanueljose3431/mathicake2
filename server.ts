@@ -34,11 +34,24 @@ async function startServer() {
 
   const GOOGLE_SHEET_ID = extractSheetId(process.env.GOOGLE_SHEET_ID || process.env.GOOGLE_SHEETS_SPREADSHEET_ID);
   const GOOGLE_SERVICE_ACCOUNT_EMAIL = cleanEnvVar(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_SHEETS_CLIENT_EMAIL);
-  const GOOGLE_PRIVATE_KEY = cleanEnvVar(process.env.GOOGLE_PRIVATE_KEY || process.env.GOOGLE_SHEETS_PRIVATE_KEY)?.replace(/\\n/g, "\n");
+  
+  // More robust private key cleaning
+  const rawKey = process.env.GOOGLE_PRIVATE_KEY || process.env.GOOGLE_SHEETS_PRIVATE_KEY;
+  let GOOGLE_PRIVATE_KEY = cleanEnvVar(rawKey);
+  if (GOOGLE_PRIVATE_KEY) {
+    // Replace literal \n with actual newlines
+    GOOGLE_PRIVATE_KEY = GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
+    // Ensure it's not double-wrapped in quotes or has escaped quotes
+    GOOGLE_PRIVATE_KEY = GOOGLE_PRIVATE_KEY.replace(/\\"/g, '"');
+  }
 
   const setupGoogleSheet = async () => {
     if (!GOOGLE_SHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) {
-      console.warn("⚠️ Google Sheets credentials missing. Orders will not be synced to Sheets.");
+      const missing = [];
+      if (!GOOGLE_SHEET_ID) missing.push("GOOGLE_SHEET_ID");
+      if (!GOOGLE_SERVICE_ACCOUNT_EMAIL) missing.push("GOOGLE_SERVICE_ACCOUNT_EMAIL");
+      if (!GOOGLE_PRIVATE_KEY) missing.push("GOOGLE_PRIVATE_KEY");
+      console.warn(`⚠️ Google Sheets credentials missing: ${missing.join(", ")}`);
       return null;
     }
 
@@ -71,6 +84,9 @@ async function startServer() {
       email: GOOGLE_SERVICE_ACCOUNT_EMAIL ? `${GOOGLE_SERVICE_ACCOUNT_EMAIL.substring(0, 5)}...` : "MISSING",
       privateKeyLength: GOOGLE_PRIVATE_KEY?.length || 0,
       privateKeyStart: GOOGLE_PRIVATE_KEY?.substring(0, 30),
+      hasBeginHeader: GOOGLE_PRIVATE_KEY?.includes("-----BEGIN PRIVATE KEY-----"),
+      hasEndHeader: GOOGLE_PRIVATE_KEY?.includes("-----END PRIVATE KEY-----"),
+      hasNewLines: GOOGLE_PRIVATE_KEY?.includes("\n"),
     };
     
     try {
@@ -138,7 +154,16 @@ async function startServer() {
   app.post("/api/export-to-sheets", async (req, res) => {
     const config = req.body as AppConfig;
     const doc = await setupGoogleSheet();
-    if (!doc) return res.status(503).json({ success: false, message: "Sheets not configured" });
+    if (!doc) {
+      const missing = [];
+      if (!GOOGLE_SHEET_ID) missing.push("GOOGLE_SHEET_ID");
+      if (!GOOGLE_SERVICE_ACCOUNT_EMAIL) missing.push("GOOGLE_SERVICE_ACCOUNT_EMAIL");
+      if (!GOOGLE_PRIVATE_KEY) missing.push("GOOGLE_PRIVATE_KEY");
+      return res.status(503).json({ 
+        success: false, 
+        message: `Google Sheets no configurado. Faltan: ${missing.join(", ")}` 
+      });
+    }
 
     try {
       const ensureSheet = async (title: string, headers: string[]) => {
@@ -218,7 +243,16 @@ async function startServer() {
   app.post("/api/sync-all-orders-to-sheets", async (req, res) => {
     const orders = req.body;
     const doc = await setupGoogleSheet();
-    if (!doc) return res.status(503).json({ success: false, message: "Sheets not configured" });
+    if (!doc) {
+      const missing = [];
+      if (!GOOGLE_SHEET_ID) missing.push("GOOGLE_SHEET_ID");
+      if (!GOOGLE_SERVICE_ACCOUNT_EMAIL) missing.push("GOOGLE_SERVICE_ACCOUNT_EMAIL");
+      if (!GOOGLE_PRIVATE_KEY) missing.push("GOOGLE_PRIVATE_KEY");
+      return res.status(503).json({ 
+        success: false, 
+        message: `Google Sheets no configurado. Faltan: ${missing.join(", ")}` 
+      });
+    }
 
     try {
       let sheet = doc.sheetsByTitle["Orders"];
@@ -251,7 +285,16 @@ async function startServer() {
 
   app.get("/api/config", async (_req, res) => {
     const doc = await setupGoogleSheet();
-    if (!doc) return res.status(503).json({ success: false, message: "Google Sheets no está configurado o las credenciales son incorrectas." });
+    if (!doc) {
+      const missing = [];
+      if (!GOOGLE_SHEET_ID) missing.push("GOOGLE_SHEET_ID");
+      if (!GOOGLE_SERVICE_ACCOUNT_EMAIL) missing.push("GOOGLE_SERVICE_ACCOUNT_EMAIL");
+      if (!GOOGLE_PRIVATE_KEY) missing.push("GOOGLE_PRIVATE_KEY");
+      return res.status(503).json({ 
+        success: false, 
+        message: `Google Sheets no configurado. Faltan: ${missing.join(", ")}` 
+      });
+    }
 
     try {
       const configData: any = {};
@@ -413,9 +456,13 @@ async function startServer() {
     const doc = await setupGoogleSheet();
 
     if (!doc) {
+      const missing = [];
+      if (!GOOGLE_SHEET_ID) missing.push("GOOGLE_SHEET_ID");
+      if (!GOOGLE_SERVICE_ACCOUNT_EMAIL) missing.push("GOOGLE_SERVICE_ACCOUNT_EMAIL");
+      if (!GOOGLE_PRIVATE_KEY) missing.push("GOOGLE_PRIVATE_KEY");
       return res.status(503).json({ 
         success: false, 
-        message: "Google Sheets integration not configured" 
+        message: `Google Sheets no configurado. Faltan: ${missing.join(", ")}` 
       });
     }
 

@@ -224,8 +224,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify(orders)
                                  });
-                                 if (res.ok) alert("✅ Pedidos sincronizados exitosamente");
-                                 else alert("❌ Error al sincronizar pedidos");
+                                 if (res.ok) {
+                                    alert("✅ Pedidos sincronizados exitosamente");
+                                 } else {
+                                    const errorData = await res.json();
+                                    alert(`❌ Error al sincronizar: ${errorData.message || errorData.error || 'Error desconocido'}`);
+                                 }
                               } catch (_e) {
                                  alert("❌ Error de conexión");
                               } finally {
