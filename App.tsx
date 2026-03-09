@@ -1,5 +1,4 @@
-
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef, FC } from 'react';
 import { Step, AppState, AppConfig, Order, CakeSize, Flavor, Filling } from './types';
 import { CAKE_SIZES, FLAVORS, FILLINGS, DECORATIONS, TOPPER_PRICES, SPHERES_PRICE, CAKE_COLORS, SATURATED_COLOR_SURCHARGE, INSPIRATION_GALLERY } from './constants';
 import SizeStep from './components/SizeStep';
@@ -48,9 +47,9 @@ const DEFAULT_CONFIG: AppConfig = {
   inspirationGallery: INSPIRATION_GALLERY
 };
 
-const App: React.FC = () => {
+const App: FC = () => {
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
-  const sheetConfigRef = React.useRef<Partial<AppConfig>>({});
+  const sheetConfigRef = useRef<Partial<AppConfig>>({});
   const [orders, setOrders] = useState<Order[]>([]);
   const [firebaseError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);

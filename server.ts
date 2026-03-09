@@ -32,9 +32,9 @@ async function startServer() {
     return match ? match[1] : cleaned;
   };
 
-  const GOOGLE_SHEET_ID = extractSheetId(process.env.GOOGLE_SHEET_ID);
-  const GOOGLE_SERVICE_ACCOUNT_EMAIL = cleanEnvVar(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
-  const GOOGLE_PRIVATE_KEY = cleanEnvVar(process.env.GOOGLE_PRIVATE_KEY)?.replace(/\\n/g, "\n");
+  const GOOGLE_SHEET_ID = extractSheetId(process.env.GOOGLE_SHEETS_SPREADSHEET_ID);
+  const GOOGLE_SERVICE_ACCOUNT_EMAIL = cleanEnvVar(process.env.GOOGLE_SHEETS_CLIENT_EMAIL);
+  const GOOGLE_PRIVATE_KEY = cleanEnvVar(process.env.GOOGLE_SHEETS_PRIVATE_KEY)?.replace(/\\n/g, "\n");
 
   const setupGoogleSheet = async () => {
     if (!GOOGLE_SHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) {

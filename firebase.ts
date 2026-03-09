@@ -1,12 +1,12 @@
 
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore";
+import { getAuth, Auth } from "firebase/auth";
 import firebaseConfig from "./firebase-applet-config.json";
 
 // Inicializar Firebase
-let db: any = null;
-let auth: any = null;
+let db = null as unknown as Firestore;
+let auth = null as unknown as Auth;
 
 export enum OperationType {
   CREATE = 'create',
@@ -38,7 +38,7 @@ export interface FirestoreErrorInfo {
 
 function safeJsonStringify(obj: any) {
   const seen = new WeakSet();
-  return JSON.stringify(obj, (_key, value) => {
+  return JSON.stringify(obj, (_, value) => {
     if (typeof value === "object" && value !== null) {
       if (seen.has(value)) {
         return "[Circular]";

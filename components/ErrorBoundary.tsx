@@ -33,7 +33,7 @@ class ErrorBoundary extends Component<Props, State> {
         if (parsed.error && parsed.operationType) {
           errorMessage = `Error de base de datos (${parsed.operationType}): ${parsed.error}`;
         }
-      } catch (_e) {
+      } catch {
         errorMessage = this.state.error?.message || errorMessage;
       }
 
