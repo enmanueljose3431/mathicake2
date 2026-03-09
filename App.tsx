@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect, useRef, FC } from 'react';
+
+import React, { useState, useCallback, useEffect } from 'react';
 import { Step, AppState, AppConfig, Order, CakeSize, Flavor, Filling } from './types';
 import { CAKE_SIZES, FLAVORS, FILLINGS, DECORATIONS, TOPPER_PRICES, SPHERES_PRICE, CAKE_COLORS, SATURATED_COLOR_SURCHARGE, INSPIRATION_GALLERY } from './constants';
 import SizeStep from './components/SizeStep';
@@ -47,11 +48,11 @@ const DEFAULT_CONFIG: AppConfig = {
   inspirationGallery: INSPIRATION_GALLERY
 };
 
-const App: FC = () => {
+const App: React.FC = () => {
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
-  const sheetConfigRef = useRef<Partial<AppConfig>>({});
+  const sheetConfigRef = React.useRef<Partial<AppConfig>>({});
   const [orders, setOrders] = useState<Order[]>([]);
-  const [firebaseError] = useState<string | null>(null);
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
   // --- NAVEGACIÓN Y ESTADO ---
@@ -72,9 +73,14 @@ const App: FC = () => {
     }
   };
   const handleLogout = async () => {
-    await signOut(auth);
-    setUser(null);
-    resetApp();
+    try {
+      await signOut(auth);
+      setUser(null);
+      resetApp();
+    } catch (e: any) {
+      console.error("Error logging out:", e);
+      setFirebaseError("Error al cerrar sesión. Por favor intenta de nuevo.");
+    }
   };
   const handleSelectFlavor = (f: Flavor) => updateAppState({ selectedFlavor: f });
   const handleSelectFilling = (fill: Filling) => updateAppState({ selectedFilling: fill });
@@ -116,11 +122,20 @@ const App: FC = () => {
       await updateDoc(orderRef, { status });
 
       // 2. Sync with Google Sheets
-      fetch('/api/update-order-status', {
+      const res = await fetch('/api/update-order-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId, status })
-      }).catch(err => console.error("Error syncing status to Sheets:", err));
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("Error syncing status to Sheets:", errorData.message);
+        // We don't throw here to avoid crashing the app for a sync failure, 
+        // but we log it.
+      } else {
+        console.log(`✅ Order ${orderId} status synced to Sheets`);
+      }
 
     } catch (e: any) {
       handleFirestoreError(e, OperationType.UPDATE, `orders/${orderId}`);
@@ -143,7 +158,7 @@ const App: FC = () => {
           console.log("✅ Base config loaded from Firestore");
         } else {
           // Solo intentar inicializar si parece ser el admin, pero no fallar si no se puede
-          if (auth.currentUser?.email === 'enmanueljose3431@gmail.com') {
+          if (auth?.currentUser?.email === 'enmanueljose3431@gmail.com') {
             try {
               await setDoc(configDocRef, DEFAULT_CONFIG);
               console.log("✅ Base config initialized in Firestore");

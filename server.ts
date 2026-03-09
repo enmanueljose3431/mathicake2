@@ -32,9 +32,9 @@ async function startServer() {
     return match ? match[1] : cleaned;
   };
 
-  const GOOGLE_SHEET_ID = extractSheetId(process.env.GOOGLE_SHEETS_SPREADSHEET_ID);
-  const GOOGLE_SERVICE_ACCOUNT_EMAIL = cleanEnvVar(process.env.GOOGLE_SHEETS_CLIENT_EMAIL);
-  const GOOGLE_PRIVATE_KEY = cleanEnvVar(process.env.GOOGLE_SHEETS_PRIVATE_KEY)?.replace(/\\n/g, "\n");
+  const GOOGLE_SHEET_ID = extractSheetId(process.env.GOOGLE_SHEET_ID);
+  const GOOGLE_SERVICE_ACCOUNT_EMAIL = cleanEnvVar(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
+  const GOOGLE_PRIVATE_KEY = cleanEnvVar(process.env.GOOGLE_PRIVATE_KEY)?.replace(/\\n/g, "\n");
 
   const setupGoogleSheet = async () => {
     if (!GOOGLE_SHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) {
@@ -93,24 +93,45 @@ async function startServer() {
   app.post("/api/update-order-status", async (req, res) => {
     const { orderId, status } = req.body;
     const doc = await setupGoogleSheet();
-    if (!doc) return res.status(503).json({ success: false });
+    if (!doc) return res.status(503).json({ success: false, message: "Google Sheets not configured" });
 
     try {
-      const sheet = doc.sheetsByIndex[0];
+      // Try to find "Orders" sheet by title first, then fallback to index 0
+      let sheet = doc.sheetsByTitle["Orders"] || doc.sheetsByTitle["Pedidos"] || doc.sheetsByIndex[0];
+      
       const rows = await sheet.getRows();
-      const row = rows.find(r => r.get("ID") === orderId);
+      // Look for ID in the first column or column named "ID"
+      const row = rows.find(r => r.get("ID") === orderId || r.get("id") === orderId);
       
       if (row) {
-        row.set("Estado", status);
-        await row.save();
-        console.log(`✅ Order ${orderId} status updated to ${status} in Sheets`);
-        res.json({ success: true });
+        // Try to find "Estado" or "Status" column
+        const statusHeader = ["Estado", "Status", "estado", "status"].find(h => row.get(h) !== undefined);
+        if (statusHeader) {
+          row.set(statusHeader, status);
+          await row.save();
+          console.log(`✅ Order ${orderId} status updated to ${status} in Sheets (${sheet.title})`);
+          res.json({ success: true });
+        } else {
+          // Fallback: if no status header found, maybe it's the 6th column (index 5)
+          // But google-spreadsheet rows are key-value based on headers.
+          // If we can't find the header, we might need to check headerValues
+          await sheet.loadHeaderRow();
+          const headers = sheet.headerValues;
+          const foundHeader = headers.find(h => ["Estado", "Status", "estado", "status"].includes(h.trim()));
+          if (foundHeader) {
+            row.set(foundHeader, status);
+            await row.save();
+            res.json({ success: true });
+          } else {
+            res.status(400).json({ success: false, message: "Status column not found in sheet" });
+          }
+        }
       } else {
-        res.status(404).json({ success: false, message: "Order not found in Sheets" });
+        res.status(404).json({ success: false, message: `Order ${orderId} not found in sheet ${sheet.title}` });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error updating order status in Sheets:", error);
-      res.status(500).json({ success: false });
+      res.status(500).json({ success: false, error: error.message });
     }
   });
 

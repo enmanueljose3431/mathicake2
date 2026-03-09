@@ -1,5 +1,5 @@
 
-import { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
@@ -33,7 +33,7 @@ class ErrorBoundary extends Component<Props, State> {
         if (parsed.error && parsed.operationType) {
           errorMessage = `Error de base de datos (${parsed.operationType}): ${parsed.error}`;
         }
-      } catch {
+      } catch (_e) {
         errorMessage = this.state.error?.message || errorMessage;
       }
 
