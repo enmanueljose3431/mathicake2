@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import cors from "cors";
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { JWT } from "google-auth-library";
@@ -505,21 +504,32 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (!process.env.VERCEL) {
+    // Serve static files from dist only if NOT on Vercel
+    // Vercel handles static files automatically via its CDN
     app.use(express.static("dist"));
-    app.get("*", (_req, res) => {
-      res.sendFile("dist/index.html", { root: "." });
+    app.get(/^(?!\/api).+/, (_req, res) => {
+      res.sendFile("index.html", { root: "dist" });
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-  });
+  if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
+    });
+  }
+  
+  return app;
 }
 
-startServer();
+export const appPromise = startServer();
+export default async (req: any, res: any) => {
+  const app = await appPromise;
+  return app(req, res);
+};
