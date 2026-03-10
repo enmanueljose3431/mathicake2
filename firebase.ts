@@ -36,7 +36,7 @@ export interface FirestoreErrorInfo {
   }
 }
 
-export function safeJsonStringify(obj: any) {
+function safeJsonStringify(obj: any) {
   const seen = new WeakSet();
   return JSON.stringify(obj, (_key, value) => {
     if (typeof value === "object" && value !== null) {
