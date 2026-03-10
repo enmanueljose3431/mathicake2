@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AppConfig, Order, CakeSize, Flavor, Filling, DecorationInfo, CakeColor, Notification } from '../types';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db, handleFirestoreError, OperationType, safeJsonStringify } from '../firebase';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 
@@ -222,7 +222,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                                  const res = await fetch('/api/sync-all-orders-to-sheets', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify(orders)
+                                    body: safeJsonStringify(orders)
                                  });
                                  if (res.ok) {
                                     alert("✅ Pedidos sincronizados exitosamente");
@@ -787,15 +787,29 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
       </main>
       {/* MODAL PARA VER IMÁGENES */}
       {viewingImage && (
-        <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4 md:p-10" onClick={() => setViewingImage(null)}>
-          <div className="relative max-w-full max-h-full" onClick={e => e.stopPropagation()}>
-            <img src={viewingImage} className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl border-4 border-white/10" alt="Vista previa" />
-            <button 
-              onClick={() => setViewingImage(null)}
-              className="absolute -top-12 right-0 text-white flex items-center gap-2 font-black uppercase text-xs tracking-widest"
-            >
-              Cerrar <span className="material-icons-round">close</span>
-            </button>
+        <div className="fixed inset-0 z-[200] bg-slate-900/95 flex items-center justify-center p-4 md:p-10 backdrop-blur-sm" onClick={() => setViewingImage(null)}>
+          <div className="relative max-w-5xl w-full flex flex-col items-center gap-4" onClick={e => e.stopPropagation()}>
+            <div className="bg-white p-2 rounded-3xl shadow-2xl">
+              <img src={viewingImage} className="max-w-full max-h-[75vh] rounded-2xl object-contain" alt="Vista previa" />
+            </div>
+            <div className="flex gap-4">
+              <a 
+                href={viewingImage} 
+                download="imagen-pastel.png"
+                target="_blank"
+                rel="noreferrer"
+                className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-2xl flex items-center gap-2 font-black uppercase text-[10px] tracking-widest transition-all"
+              >
+                <span className="material-icons-round">download</span>
+                Descargar
+              </a>
+              <button 
+                onClick={() => setViewingImage(null)}
+                className="bg-primary text-white px-8 py-3 rounded-2xl flex items-center gap-2 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20 transition-all hover:scale-105"
+              >
+                Cerrar <span className="material-icons-round">close</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

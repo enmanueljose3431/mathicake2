@@ -15,7 +15,7 @@ import AuthStep from './components/AuthStep';
 import UserDashboard from './components/UserDashboard';
 
 // Firebase imports
-import { db, auth, handleFirestoreError, OperationType } from './firebase';
+import { db, auth, handleFirestoreError, OperationType, safeJsonStringify } from './firebase';
 import { collection, onSnapshot, doc, setDoc, getDoc, deleteDoc, updateDoc, addDoc } from 'firebase/firestore';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 
@@ -404,7 +404,7 @@ const App: React.FC = () => {
         const res = await fetch('/api/sync-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newOrder)
+          body: safeJsonStringify(newOrder)
         });
         if (!res.ok) {
           const err = await res.json();
