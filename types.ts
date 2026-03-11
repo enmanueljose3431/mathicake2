@@ -161,5 +161,6 @@ export interface AppState {
   totalPrice: number;
   customFilling: string;
   lastOrderId?: string;
+  whatsappUrl?: string;
   paymentStrategy: PaymentStrategy;
 }

@@ -4,11 +4,12 @@ import { AppConfig } from '../types';
 
 interface SuccessStepProps {
   orderId: string;
+  whatsappUrl: string;
   onReset: () => void;
   config: AppConfig;
 }
 
-const SuccessStep: React.FC<SuccessStepProps> = ({ orderId, onReset, config }) => {
+const SuccessStep: React.FC<SuccessStepProps> = ({ orderId, whatsappUrl, onReset, config }) => {
   return (
     <div className="flex flex-col h-full bg-background-light items-center justify-center p-8 animate-fadeIn text-center">
       <div className="relative mb-10">
@@ -28,11 +29,19 @@ const SuccessStep: React.FC<SuccessStepProps> = ({ orderId, onReset, config }) =
             {orderId}
          </div>
          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-4 leading-relaxed">
-            Hemos enviado tu pedido a WhatsApp y lo hemos guardado en nuestro historial de ventas.
+            Hemos intentado enviar tu pedido a WhatsApp. Si no se abrió automáticamente, usa el botón de abajo.
          </p>
       </div>
 
       <div className="space-y-4 w-full max-w-sm">
+         <button 
+            onClick={() => window.open(whatsappUrl, '_blank')}
+            className="w-full bg-green-500 text-white font-black py-5 rounded-2xl shadow-xl shadow-green-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] uppercase tracking-widest text-sm flex items-center justify-center gap-2"
+          >
+            <span className="material-icons-round">forum</span>
+            Enviar por WhatsApp
+         </button>
+
          <button 
             onClick={onReset}
             className="w-full bg-primary text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98] uppercase tracking-widest text-sm"

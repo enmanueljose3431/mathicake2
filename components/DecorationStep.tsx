@@ -127,7 +127,7 @@ const DecorationStep: React.FC<DecorationStepProps> = ({
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col md:flex-row w-full z-10 overflow-hidden">
+      <main className="flex-1 flex flex-col md:flex-row w-full z-10 overflow-y-auto md:overflow-hidden no-scrollbar">
         {/* VISTA PREVIA DEL PASTEL */}
         <div className="w-full md:w-[40%] bg-slate-50 flex flex-col items-center justify-center p-4 md:p-10 border-b md:border-b-0 md:border-r border-gray-100 shrink-0 md:shrink overflow-hidden">
           <div className="relative w-full max-w-[200px] md:max-w-[320px] filter drop-shadow-[0_25px_45px_rgba(0,0,0,0.1)] transform transition-transform duration-700 hover:scale-105">
@@ -153,7 +153,7 @@ const DecorationStep: React.FC<DecorationStepProps> = ({
         </div>
 
         {/* OPCIONES DE DISEÑO */}
-        <div className="flex-1 overflow-y-auto no-scrollbar p-5 md:p-10 space-y-10 md:space-y-16 pb-20 bg-white">
+        <div className="flex-1 md:overflow-y-auto no-scrollbar p-5 md:p-10 space-y-10 md:space-y-16 pb-20 bg-white">
           <section>
             <h3 className="text-[13px] md:text-[16px] font-black text-black uppercase tracking-[0.2em] mb-6 flex items-center gap-3 border-l-4 border-primary pl-4">
                1. Estilo de Cobertura

@@ -55,10 +55,38 @@ const App: React.FC = () => {
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
+  const getInitialState = useCallback((): AppState => ({
+    step: 'SIZE',
+    selectedSize: config.sizes[1],
+    selectedFlavor: config.flavors[0],
+    selectedFilling: config.fillings[1],
+    selectedDecoration: 'liso',
+    cakeColors: ['#FFFFFF'],
+    topperType: 'none',
+    hasSpheres: false,
+    theme: '',
+    birthdayName: '',
+    birthdayAge: '',
+    specialRequirements: '',
+    referenceImage: null,
+    paymentProof: null,
+    paymentReference: '',
+    amountBs: '',
+    deliveryMethod: 'PICKUP',
+    deliveryDate: '',
+    deliveryTime: '',
+    coverageType: 'chantilly',
+    totalPrice: 45,
+    customFilling: '',
+    paymentStrategy: 'FIFTY_PERCENT',
+  }), [config.sizes, config.flavors, config.fillings]);
+
+  const [state, setState] = useState<AppState>(() => getInitialState());
+
   // --- NAVEGACIÓN Y ESTADO ---
   const navigateTo = (step: Step) => setState(prev => ({ ...prev, step }));
   const updateAppState = (updates: Partial<AppState>) => setState(prev => ({ ...prev, ...updates }));
-  const resetApp = () => setState(prev => ({ ...prev, step: 'SIZE' }));
+  const resetApp = () => setState(getInitialState());
 
   const handleSelectSize = (s: CakeSize) => updateAppState({ selectedSize: s });
   const handleGoToFlavor = () => navigateTo('FLAVOR');
@@ -66,7 +94,9 @@ const App: React.FC = () => {
   const handleGoToAuth = () => navigateTo('AUTH');
   const handleGoToDashboard = () => navigateTo('USER_DASHBOARD');
   const handleAuthSuccess = () => {
-    if (state.selectedSize) {
+    // Si el usuario estaba en el flujo de compra (tenía algo configurado más allá del default)
+    // O si venía específicamente de SUMMARY
+    if (state.step === 'AUTH' && state.birthdayName) {
       navigateTo('PAYMENT');
     } else {
       navigateTo('USER_DASHBOARD');
@@ -241,32 +271,6 @@ const App: React.FC = () => {
     root.style.setProperty('--surface-color', config.appTheme.surfaceColor);
   }, [config.appTheme]);
 
-  const [state, setState] = useState<AppState>({
-    step: 'SIZE',
-    selectedSize: config.sizes[1],
-    selectedFlavor: config.flavors[0],
-    selectedFilling: config.fillings[1],
-    selectedDecoration: 'liso',
-    cakeColors: ['#FFFFFF'],
-    topperType: 'none',
-    hasSpheres: false,
-    theme: '',
-    birthdayName: '',
-    birthdayAge: '',
-    specialRequirements: '',
-    referenceImage: null,
-    paymentProof: null,
-    paymentReference: '',
-    amountBs: '',
-    deliveryMethod: 'PICKUP',
-    deliveryDate: '',
-    deliveryTime: '',
-    coverageType: 'chantilly',
-    totalPrice: 45,
-    customFilling: '',
-    paymentStrategy: 'FIFTY_PERCENT',
-  });
-
   const calculateTotal = useCallback(() => {
     const size = config.sizes.find(s => s.id === state.selectedSize?.id) || config.sizes[0];
     const flavor = config.flavors.find(f => f.id === state.selectedFlavor?.id) || config.flavors[0];
@@ -380,45 +384,41 @@ const App: React.FC = () => {
         if (db) await setDoc(doc(db, "orders", simpleId), newOrder);
       } catch (e) {
         handleFirestoreError(e, OperationType.CREATE, `orders/${simpleId}`);
+        return; // Stop if we can't even save the order
       }
       
-      // Notificar al administrador
+      // Notificar al administrador (Non-blocking)
       if (db) {
-        try {
-          await addDoc(collection(db, "notifications"), {
-            orderId: simpleId,
-            userId: user?.uid || 'anonymous',
-            userName: user?.displayName || state.birthdayName || 'Cliente Web',
-            type: 'NEW_ORDER',
-            message: `Nuevo pedido recibido #${simpleId}`,
-            timestamp: new Date().toISOString(),
-            read: false
-          });
-        } catch (e) {
-          handleFirestoreError(e, OperationType.CREATE, "notifications");
-        }
+        addDoc(collection(db, "notifications"), {
+          orderId: simpleId,
+          userId: user?.uid || 'anonymous',
+          userName: user?.displayName || state.birthdayName || 'Cliente Web',
+          type: 'NEW_ORDER',
+          message: `Nuevo pedido recibido #${simpleId}`,
+          timestamp: new Date().toISOString(),
+          read: false
+        }).catch(e => console.warn("Notification failed:", e));
       }
       
-      // Sync to Google Sheets
-      try {
-        const res = await fetch('/api/sync-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newOrder)
-        });
-        if (!res.ok) {
-          const err = await res.json();
-          console.warn("Google Sheets sync failed:", err.message || err.error);
-        } else {
-          console.log("✅ Order synced to Google Sheets");
-        }
-      } catch (e) {
-        console.warn("Google Sheets sync network error:", e);
-      }
+      // Sync to Google Sheets (Non-blocking)
+      fetch('/api/sync-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newOrder)
+      }).catch(e => console.warn("Google Sheets sync failed:", e));
 
-      window.open(`https://wa.me/${config.appTheme.whatsappNumber}?text=${encodeURIComponent(`🎂 *NUEVO PEDIDO* (Ref: ${simpleId})\n\n${detailedInfo}\n\n💰 Total: $${state.totalPrice.toFixed(2)}`)}`, '_blank');
-      setState(prev => ({ ...prev, step: 'SUCCESS', lastOrderId: simpleId }));
-    } catch (error) { console.error("Error crítico:", error); }
+      const waUrl = `https://wa.me/${config.appTheme.whatsappNumber}?text=${encodeURIComponent(`🎂 *NUEVO PEDIDO* (Ref: ${simpleId})\n\n${detailedInfo}\n\n💰 Total: $${state.totalPrice.toFixed(2)}`)}`;
+      
+      // Actualizamos el estado para mostrar la pantalla de éxito
+      setState(prev => ({ ...prev, step: 'SUCCESS', lastOrderId: simpleId, whatsappUrl: waUrl }));
+      
+      // Intentamos abrir WhatsApp en una nueva pestaña
+      setTimeout(() => {
+        window.open(waUrl, '_blank');
+      }, 100);
+    } catch (error) { 
+      console.error("Error crítico en handleFinalizeOrder:", error); 
+    }
   };
 
   return (
@@ -478,7 +478,7 @@ const App: React.FC = () => {
             {state.step === 'PERSONALIZATION' && <PersonalizationStep appState={state} onUpdate={handleUpdatePersonalization} onNext={handleGoToSummary} onBack={handleGoToDecoration} />}
             {state.step === 'SUMMARY' && <SummaryStep appState={state} onUpdate={handleUpdateSummary} onBack={handleGoToPersonalization} onConfirm={handleGoToPayment} config={config} user={user} />}
             {state.step === 'PAYMENT' && <PaymentStep {...state} config={config} onUpdatePayment={(d) => updateAppState(d)} onBack={handleGoToSummary} onComplete={handleFinalizeOrder} />}
-            {state.step === 'SUCCESS' && <SuccessStep orderId={state.lastOrderId || ''} onReset={resetApp} config={config} />}
+            {state.step === 'SUCCESS' && <SuccessStep orderId={state.lastOrderId || ''} whatsappUrl={state.whatsappUrl || ''} onReset={resetApp} config={config} />}
             {state.step === 'AUTH' && <AuthStep onSuccess={handleAuthSuccess} onCancel={resetApp} />}
             {state.step === 'USER_DASHBOARD' && <UserDashboard config={config} onExit={resetApp} />}
             {state.step === 'ADMIN_LOGIN' && <AdminLogin onLoginSuccess={handleLoginSuccess} onCancel={resetApp} />}

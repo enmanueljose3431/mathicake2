@@ -98,7 +98,7 @@ app.post("/api/sync-order", async (req, res) => {
     const headers = ['ID', 'Fecha', 'Cliente', 'Detalles', 'Total', 'Estado'];
     try {
       await sheet.loadHeaderRow();
-    } catch (e) {
+    } catch (_e) {
       await sheet.setHeaderRow(headers);
     }
     await sheet.addRow({
