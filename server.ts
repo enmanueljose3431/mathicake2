@@ -10,6 +10,11 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
+// Health check for Vercel
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 // Google Sheets Setup Helpers
 const cleanEnvVar = (val: string | undefined) => {
   if (!val) return val;
@@ -382,26 +387,34 @@ app.get("/api/health", (_req, res) => {
 
 // --- SERVER STARTUP ---
 
-if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
-  const { createServer: createViteServer } = await import("vite");
-  const vite = await createViteServer({
-    server: { middlewareMode: true },
-    appType: "spa",
-  });
-  app.use(vite.middlewares);
-  
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-  });
-} else if (!process.env.VERCEL) {
-  // Production but not Vercel (e.g. local production test or other cloud)
-  app.use(express.static("dist"));
-  app.get("*", (_req, res) => {
-    res.sendFile("dist/index.html", { root: "." });
-  });
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-  });
-}
+const startServer = async () => {
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+    try {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+      
+      app.listen(PORT, "0.0.0.0", () => {
+        console.log(`🚀 Server running on http://localhost:${PORT}`);
+      });
+    } catch (e) {
+      console.error("Vite failed to load:", e);
+    }
+  } else if (!process.env.VERCEL) {
+    // Production but not Vercel
+    app.use(express.static("dist"));
+    app.get("*", (_req, res) => {
+      res.sendFile("dist/index.html", { root: "." });
+    });
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
+    });
+  }
+};
+
+startServer();
 
 export default app;
