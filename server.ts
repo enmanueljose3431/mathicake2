@@ -55,6 +55,8 @@ const setupGoogleSheet = async () => {
     return doc;
   } catch (error: any) {
     console.error("❌ Error connecting to Google Sheets:", error.message || error);
+    // Store the last error for the debug endpoint
+    (global as any).lastSheetError = error.message || String(error);
     return null;
   }
 };
@@ -74,6 +76,8 @@ app.get("/api/debug-sheets", async (_req, res) => {
       hasBeginHeader: GOOGLE_PRIVATE_KEY?.includes("-----BEGIN PRIVATE KEY-----") || false,
       hasEndHeader: GOOGLE_PRIVATE_KEY?.includes("-----END PRIVATE KEY-----") || false,
       hasNewLines: GOOGLE_PRIVATE_KEY?.includes("\n") || false,
+      nodeEnv: process.env.NODE_ENV,
+      isVercel: !!process.env.VERCEL
     };
     
     const doc = await setupGoogleSheet();
@@ -81,7 +85,8 @@ app.get("/api/debug-sheets", async (_req, res) => {
       envStatus: status,
       connectionSuccess: !!doc,
       sheetTitle: doc?.title || "N/A",
-      error: !doc ? "Check server logs for detailed error" : null
+      error: !doc ? ((global as any).lastSheetError || "Check server logs for detailed error") : null,
+      tip: !doc ? "Ensure GOOGLE_SHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL, and GOOGLE_PRIVATE_KEY are set in Vercel Environment Variables." : null
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
