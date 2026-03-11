@@ -382,28 +382,26 @@ app.get("/api/health", (_req, res) => {
 
 // --- SERVER STARTUP ---
 
-async function start() {
-  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
-    const { createServer: createViteServer } = await import("vite");
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    app.use(express.static("dist"));
-    app.get("*", (_req, res) => {
-      res.sendFile("dist/index.html", { root: "." });
-    });
-  }
-
-  if (!process.env.VERCEL) {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-    });
-  }
+if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+  const { createServer: createViteServer } = await import("vite");
+  const vite = await createViteServer({
+    server: { middlewareMode: true },
+    appType: "spa",
+  });
+  app.use(vite.middlewares);
+  
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+  });
+} else if (!process.env.VERCEL) {
+  // Production but not Vercel (e.g. local production test or other cloud)
+  app.use(express.static("dist"));
+  app.get("*", (_req, res) => {
+    res.sendFile("dist/index.html", { root: "." });
+  });
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+  });
 }
-
-start();
 
 export default app;
