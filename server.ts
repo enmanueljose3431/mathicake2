@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { JWT } from "google-auth-library";
-import { AppConfig } from "./types";
+import { AppConfig } from "./types.js";
 
 const app = express();
 const PORT = 3000;
@@ -387,34 +387,30 @@ app.get("/api/health", (_req, res) => {
 
 // --- SERVER STARTUP ---
 
-const startServer = async () => {
-  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
-    try {
-      const { createServer: createViteServer } = await import("vite");
-      const vite = await createViteServer({
-        server: { middlewareMode: true },
-        appType: "spa",
-      });
+if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+  // Use dynamic import for vite to avoid loading it in production/Vercel
+  import("vite").then(({ createServer: createViteServer }) => {
+    createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    }).then(vite => {
       app.use(vite.middlewares);
-      
       app.listen(PORT, "0.0.0.0", () => {
         console.log(`🚀 Server running on http://localhost:${PORT}`);
       });
-    } catch (e) {
-      console.error("Vite failed to load:", e);
-    }
-  } else if (!process.env.VERCEL) {
-    // Production but not Vercel
-    app.use(express.static("dist"));
-    app.get("*", (_req, res) => {
-      res.sendFile("dist/index.html", { root: "." });
     });
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-    });
-  }
-};
-
-startServer();
+  }).catch(e => {
+    console.error("Vite failed to load:", e);
+  });
+} else if (!process.env.VERCEL) {
+  // Production but not Vercel
+  app.use(express.static("dist"));
+  app.get("*", (_req, res) => {
+    res.sendFile("dist/index.html", { root: "." });
+  });
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+  });
+}
 
 export default app;
