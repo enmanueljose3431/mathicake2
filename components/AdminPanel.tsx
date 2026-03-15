@@ -17,7 +17,7 @@ interface AdminPanelProps {
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefreshFromSheets, orders, onDeleteOrder, onUpdateOrderStatus, onExit, user }) => {
-  const [activeTab, setActiveTab] = useState<'ORDERS' | 'SIZES' | 'FLAVORS' | 'DECORATIONS' | 'COLORS' | 'GALLERY' | 'PRICES' | 'PAYMENTS' | 'SETTINGS' | 'NOTIFICATIONS'>('ORDERS');
+  const [activeTab, setActiveTab] = useState<'ORDERS' | 'SIZES' | 'FLAVORS' | 'DECORATIONS' | 'COLORS' | 'GALLERY' | 'PRICES' | 'PAYMENTS' | 'SETTINGS' | 'NOTIFICATIONS' | 'SPECIALS'>('ORDERS');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
@@ -118,6 +118,38 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
     updateConfig({ fillings: config.fillings.filter(f => f.id !== id) });
   };
 
+  // --- PRODUCTOS ESPECIALES ---
+  const addSpecialProduct = () => {
+    const n = {
+      id: `sp_${Date.now()}`,
+      title: 'Nuevo Producto',
+      description: 'Descripción del producto',
+      imageUrl: 'https://picsum.photos/seed/new/400/300',
+      characteristics: ['Característica 1'],
+      price: 10
+    };
+    updateConfig({ specialProducts: [...(config.specialProducts || []), n] });
+  };
+
+  const removeSpecialProduct = (id: string) => {
+    updateConfig({ specialProducts: (config.specialProducts || []).filter(p => p.id !== id) });
+  };
+
+  const updateSpecialProduct = (id: string, field: string, value: any) => {
+    updateConfig({
+      specialProducts: (config.specialProducts || []).map(p => p.id === id ? { ...p, [field]: value } : p)
+    });
+  };
+
+  const handleSpecialImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const r = new FileReader();
+      r.onloadend = () => updateSpecialProduct(id, 'imageUrl', r.result as string);
+      r.readAsDataURL(file);
+    }
+  };
+
   // --- COLORES ---
   const addColor = () => {
     const n: CakeColor = { name: 'Nuevo Color', hex: '#E2E2E2', isSaturated: false, priceModifier: 0 };
@@ -156,6 +188,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
   const menuItems = [
     { id: 'ORDERS', label: 'Ventas', icon: 'analytics', badge: 0 },
     { id: 'NOTIFICATIONS', label: 'Notificaciones', icon: 'notifications', badge: unreadCount },
+    { id: 'SPECIALS', label: 'Especiales', icon: 'auto_awesome', badge: 0 },
     { id: 'SIZES', label: 'Moldes', icon: 'straighten', badge: 0 },
     { id: 'FLAVORS', label: 'Sabores/Rellenos', icon: 'restaurant_menu', badge: 0 },
     { id: 'DECORATIONS', label: 'Estilos', icon: 'auto_fix_high', badge: 0 },
@@ -403,6 +436,107 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeTab === 'SPECIALS' && (
+              <div className="space-y-8">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-black uppercase text-slate-800">Productos Especiales (Carrusel)</h3>
+                  <button onClick={addSpecialProduct} className="bg-primary text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 shadow-lg shadow-primary/20">
+                    <span className="material-icons-round text-sm">add</span>
+                    Añadir Producto
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {(config.specialProducts || []).map(p => (
+                    <div key={p.id} className="bg-white p-8 rounded-[3rem] border border-slate-200 shadow-sm space-y-6 relative group">
+                      <button onClick={() => removeSpecialProduct(p.id)} className="absolute top-6 right-6 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                        <span className="material-icons-round">delete</span>
+                      </button>
+                      
+                      <div className="flex flex-col md:flex-row gap-8">
+                        <div className="relative w-full md:w-40 h-40 rounded-[2rem] overflow-hidden bg-slate-100 border-4 border-white shadow-md shrink-0">
+                          <img src={p.imageUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleSpecialImageUpload(p.id, e)} />
+                          <div className="absolute bottom-2 right-2 bg-black/50 text-white p-1.5 rounded-full pointer-events-none">
+                            <span className="material-icons-round text-[10px]">edit</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex-1 space-y-4">
+                          <div>
+                            <label className="text-[8px] font-black uppercase text-slate-400 ml-2">Título</label>
+                            <input 
+                              type="text" 
+                              className="w-full bg-slate-50 rounded-xl p-3 font-black text-sm border-none" 
+                              value={p.title} 
+                              onChange={(e) => updateSpecialProduct(p.id, 'title', e.target.value)} 
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[8px] font-black uppercase text-slate-400 ml-2">Precio ($)</label>
+                            <input 
+                              type="number" 
+                              className="w-full bg-slate-50 rounded-xl p-3 font-black text-sm border-none" 
+                              value={p.price} 
+                              onChange={(e) => updateSpecialProduct(p.id, 'price', Number(e.target.value))} 
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[8px] font-black uppercase text-slate-400 ml-2">Descripción</label>
+                            <textarea 
+                              className="w-full bg-slate-50 rounded-xl p-3 text-xs font-bold border-none h-20 resize-none" 
+                              value={p.description} 
+                              onChange={(e) => updateSpecialProduct(p.id, 'description', e.target.value)} 
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 pt-4 border-t border-slate-100">
+                        <div className="flex justify-between items-center">
+                          <h4 className="text-[10px] font-black uppercase text-slate-400">Características</h4>
+                          <button 
+                            onClick={() => {
+                              const next = [...p.characteristics, 'Nueva característica'];
+                              updateSpecialProduct(p.id, 'characteristics', next);
+                            }}
+                            className="text-primary text-[10px] font-black uppercase"
+                          >
+                            + Añadir
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2">
+                          {p.characteristics.map((char, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <input 
+                                type="text" 
+                                className="flex-1 bg-slate-50 rounded-lg p-2 text-[10px] font-bold border-none" 
+                                value={char} 
+                                onChange={(e) => {
+                                  const next = [...p.characteristics];
+                                  next[idx] = e.target.value;
+                                  updateSpecialProduct(p.id, 'characteristics', next);
+                                }} 
+                              />
+                              <button 
+                                onClick={() => {
+                                  const next = p.characteristics.filter((_, i) => i !== idx);
+                                  updateSpecialProduct(p.id, 'characteristics', next);
+                                }}
+                                className="text-slate-300 hover:text-red-500"
+                              >
+                                <span className="material-icons-round text-sm">remove_circle</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -736,7 +870,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                                     const res = await fetch('/api/export-to-sheets', {
                                        method: 'POST',
                                        headers: { 'Content-Type': 'application/json' },
-                                       body: JSON.stringify(config)
+                                       body: safeJsonStringify(config)
                                     });
                                     if (res.ok) alert("✅ Configuración exportada exitosamente a Google Sheets");
                                     else alert("❌ Error al exportar. Revisa los logs del servidor.");

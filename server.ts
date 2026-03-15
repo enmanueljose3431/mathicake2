@@ -182,9 +182,18 @@ app.post("/api/export-to-sheets", async (req, res) => {
         }
       }
     };
-    const { sizes: _s, flavors: _f, fillings: _fi, decorations: _d, topperPrices: _t, colors: _c, ...rest } = config;
+    const { sizes: _s, flavors: _f, fillings: _fi, decorations: _d, topperPrices: _t, colors: _c, specialProducts: _sp, ...rest } = config;
     flattenConfig(rest);
     await configSheet.addRows(configRows);
+
+    if (config.specialProducts) {
+      const sheet = await ensureSheet("SpecialProducts", ["id", "title", "description", "imageUrl", "characteristics", "price"]);
+      const rows = config.specialProducts.map(p => ({
+        ...p,
+        characteristics: p.characteristics.join(", ")
+      }));
+      await sheet.addRows(rows);
+    }
 
     if (config.sizes) {
       const sheet = await ensureSheet("Sizes", ["id", "diameter", "heightType", "portions", "basePrice", "costMultiplier"]);
@@ -372,6 +381,21 @@ app.get("/api/config", async (_req, res) => {
       configData.colors = colors.map((c: any) => ({
         ...c,
         isSaturated: String(c.isSaturated).toLowerCase() === 'true' || c.isSaturated === true
+      }));
+    }
+
+    const specialProducts = await processListSheet(["SpecialProducts", "Especiales", "Productos Especiales"], {
+      id: ["id", "ID", "Id"],
+      title: ["title", "Title", "Título", "Nombre"],
+      description: ["description", "Description", "Descripción"],
+      imageUrl: ["imageUrl", "image_url", "Imagen", "URL Imagen"],
+      characteristics: ["characteristics", "Characteristics", "Características"],
+      price: ["price", "Price", "Precio", "Costo"]
+    });
+    if (specialProducts) {
+      configData.specialProducts = specialProducts.map((p: any) => ({
+        ...p,
+        characteristics: typeof p.characteristics === 'string' ? p.characteristics.split(',').map((s: string) => s.trim()) : (Array.isArray(p.characteristics) ? p.characteristics : [])
       }));
     }
 

@@ -80,6 +80,15 @@ export interface AppTheme {
   surfaceColor: string;
 }
 
+export interface SpecialProduct {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  characteristics: string[];
+  price: number;
+}
+
 export interface AppConfig {
   sizes: CakeSize[];
   flavors: Flavor[];
@@ -93,6 +102,7 @@ export interface AppConfig {
   paymentDetails: PaymentDetails;
   appTheme: AppTheme;
   inspirationGallery: InspirationImage[];
+  specialProducts?: SpecialProduct[];
 }
 
 export interface Order {
@@ -124,6 +134,7 @@ export interface Order {
   specialRequirements?: string;
   coverageType?: CoverageType;
   customFilling?: string;
+  specialItems?: { productId: string; title: string; price: number; quantity: number }[];
 }
 
 export interface Notification {
@@ -163,4 +174,5 @@ export interface AppState {
   lastOrderId?: string;
   whatsappUrl?: string;
   paymentStrategy: PaymentStrategy;
+  specialItems: { productId: string; title: string; price: number; quantity: number }[];
 }

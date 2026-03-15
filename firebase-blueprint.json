@@ -51,7 +51,21 @@
         "saturatedColorSurcharge": { "type": "number" },
         "coverageSurcharges": { "type": "object" },
         "paymentDetails": { "type": "object" },
-        "appTheme": { "type": "object" }
+        "appTheme": { "type": "object" },
+        "specialProducts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" },
+              "imageUrl": { "type": "string" },
+              "characteristics": { "type": "array", "items": { "type": "string" } },
+              "price": { "type": "number" }
+            }
+          }
+        }
       }
     }
   },

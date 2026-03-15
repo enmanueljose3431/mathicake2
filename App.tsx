@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Step, AppState, AppConfig, Order, CakeSize, Flavor, Filling } from './types';
+import { Step, AppState, AppConfig, Order, CakeSize, Flavor, Filling, SpecialProduct } from './types';
 import { CAKE_SIZES, FLAVORS, FILLINGS, DECORATIONS, TOPPER_PRICES, SPHERES_PRICE, CAKE_COLORS, SATURATED_COLOR_SURCHARGE, INSPIRATION_GALLERY } from './constants';
 import SizeStep from './components/SizeStep';
 import FlavorStep from './components/FlavorStep';
@@ -13,9 +13,10 @@ import AdminLogin from './components/AdminLogin';
 import AdminPanel from './components/AdminPanel';
 import AuthStep from './components/AuthStep';
 import UserDashboard from './components/UserDashboard';
+import SpecialProductsModal from './components/SpecialProductsModal';
 
 // Firebase imports
-import { db, auth, handleFirestoreError, OperationType } from './firebase';
+import { db, auth, handleFirestoreError, OperationType, safeJsonStringify } from './firebase';
 import { collection, onSnapshot, doc, setDoc, getDoc, deleteDoc, updateDoc, addDoc } from 'firebase/firestore';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 
@@ -45,7 +46,33 @@ const DEFAULT_CONFIG: AppConfig = {
     textColor: "#000000",
     surfaceColor: "#FFFFFF"
   },
-  inspirationGallery: INSPIRATION_GALLERY
+  inspirationGallery: INSPIRATION_GALLERY,
+  specialProducts: [
+    {
+      id: '1',
+      title: 'Donas Glaseadas',
+      description: 'Deliciosas donas con glaseado artesanal y decoraciones creativas.',
+      imageUrl: 'https://picsum.photos/seed/donuts/800/600',
+      characteristics: ['Masa suave y esponjosa', 'Glaseado de vainilla o chocolate', 'Toppings variados'],
+      price: 15
+    },
+    {
+      id: '2',
+      title: 'Cupcakes Gourmet',
+      description: 'Pequeñas delicias con rellenos sorprendentes y cremas suaves.',
+      imageUrl: 'https://picsum.photos/seed/cupcakes/800/600',
+      characteristics: ['Crema de mantequilla sedosa', 'Relleno de frutas o chocolate', 'Decoración personalizada'],
+      price: 12
+    },
+    {
+      id: '3',
+      title: 'Galletas Decoradas',
+      description: 'Galletas de mantequilla decoradas con glaseado real para tus eventos.',
+      imageUrl: 'https://picsum.photos/seed/cookies/800/600',
+      characteristics: ['Sabor a vainilla clásica', 'Diseños detallados', 'Empaque individual disponible'],
+      price: 18
+    }
+  ]
 };
 
 const App: React.FC = () => {
@@ -54,6 +81,7 @@ const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [isSpecialProductsOpen, setIsSpecialProductsOpen] = useState(false);
 
   const getInitialState = useCallback((): AppState => ({
     step: 'SIZE',
@@ -79,6 +107,7 @@ const App: React.FC = () => {
     totalPrice: 45,
     customFilling: '',
     paymentStrategy: 'FIFTY_PERCENT',
+    specialItems: [],
   }), [config.sizes, config.flavors, config.fillings]);
 
   const [state, setState] = useState<AppState>(() => getInitialState());
@@ -90,6 +119,21 @@ const App: React.FC = () => {
 
   const handleSelectSize = (s: CakeSize) => updateAppState({ selectedSize: s });
   const handleGoToFlavor = () => navigateTo('FLAVOR');
+
+  const handleAddSpecialProduct = (product: SpecialProduct) => {
+    setState(prev => {
+      const existing = prev.specialItems.find(item => item.productId === product.id);
+      let newItems;
+      if (existing) {
+        newItems = prev.specialItems.map(item => 
+          item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      } else {
+        newItems = [...prev.specialItems, { productId: product.id, title: product.title, price: product.price, quantity: 1 }];
+      }
+      return { ...prev, specialItems: newItems };
+    });
+  };
   const handleGoToAdminLogin = () => navigateTo('ADMIN_LOGIN');
   const handleGoToAuth = () => navigateTo('AUTH');
   const handleGoToDashboard = () => navigateTo('USER_DASHBOARD');
@@ -155,7 +199,7 @@ const App: React.FC = () => {
       const res = await fetch('/api/update-order-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, status })
+        body: safeJsonStringify({ orderId, status })
       });
       
       if (!res.ok) {
@@ -292,6 +336,11 @@ const App: React.FC = () => {
     const colorPriceSum = colorObjs.reduce((sum, c) => sum + (c?.priceModifier || 0), 0);
     total += (colorPriceSum * factor);
     
+    // Add special items prices
+    state.specialItems.forEach(item => {
+      total += item.price * item.quantity;
+    });
+    
     return total;
   }, [
     state.selectedSize, 
@@ -302,6 +351,7 @@ const App: React.FC = () => {
     state.topperType, 
     state.hasSpheres, 
     state.cakeColors, 
+    state.specialItems,
     config
   ]);
 
@@ -350,7 +400,10 @@ const App: React.FC = () => {
     try {
       const decorLabel = config.decorations[state.selectedDecoration]?.label || 'Liso';
       const colorNames = state.cakeColors.map(hex => config.colors.find(c => c.hex === hex)?.name || 'Personalizado').join(', ');
-      const detailedInfo = `🎂 PASTEL ${state.selectedSize?.diameter}cm\n🍰 Bizcocho: ${state.selectedFlavor?.name}\n🍦 Relleno: ${state.selectedFilling?.id === 'others' ? state.customFilling : state.selectedFilling?.name}\n✨ Estilo: ${decorLabel}\n🎨 Colores: ${colorNames}\n🎯 Cobertura: ${state.coverageType.toUpperCase()}\n🚀 Extras: ${state.topperType !== 'none' ? 'Topper ' + state.topperType : 'Sin Topper'}${state.hasSpheres ? ', con Esferas' : ''}\n🎉 Temática: ${state.theme}\n📍 Entrega: ${state.deliveryMethod} - ${state.deliveryDate}`;
+      const specialItemsText = state.specialItems.length > 0 
+        ? `\n🎁 *PRODUCTOS ESPECIALES:*\n${state.specialItems.map(item => `- ${item.title} x${item.quantity} ($${(item.price * item.quantity).toFixed(2)})`).join('\n')}`
+        : '';
+      const detailedInfo = `🎂 PASTEL ${state.selectedSize?.diameter}cm\n🍰 Bizcocho: ${state.selectedFlavor?.name}\n🍦 Relleno: ${state.selectedFilling?.id === 'others' ? state.customFilling : state.selectedFilling?.name}\n✨ Estilo: ${decorLabel}\n🎨 Colores: ${colorNames}\n🎯 Cobertura: ${state.coverageType.toUpperCase()}\n🚀 Extras: ${state.topperType !== 'none' ? 'Topper ' + state.topperType : 'Sin Topper'}${state.hasSpheres ? ', con Esferas' : ''}\n🎉 Temática: ${state.theme}\n📍 Entrega: ${state.deliveryMethod} - ${state.deliveryDate}${specialItemsText}`;
       const newOrder: Order = { 
         id: simpleId, 
         userId: user?.uid || '',
@@ -378,6 +431,7 @@ const App: React.FC = () => {
         specialRequirements: state.specialRequirements || '',
         coverageType: state.coverageType,
         customFilling: state.customFilling,
+        specialItems: state.specialItems,
         paymentDate: state.paymentProof ? new Date().toISOString() : ''
       };
       try {
@@ -404,7 +458,7 @@ const App: React.FC = () => {
       fetch('/api/sync-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newOrder)
+        body: safeJsonStringify(newOrder)
       }).catch(e => console.warn("Google Sheets sync failed:", e));
 
       const waUrl = `https://wa.me/${config.appTheme.whatsappNumber}?text=${encodeURIComponent(`🎂 *NUEVO PEDIDO* (Ref: ${simpleId})\n\n${detailedInfo}\n\n💰 Total: $${state.totalPrice.toFixed(2)}`)}`;
@@ -431,7 +485,16 @@ const App: React.FC = () => {
 
         {!['ADMIN_PANEL'].includes(state.step) && (
           <div className="w-full bg-primary h-16 md:h-20 flex items-center justify-between relative shrink-0 z-[60] shadow-md px-4 md:px-8">
-             <div className="flex-1"></div>
+             <div className="flex-1 flex justify-start items-center">
+               <button 
+                onClick={() => setIsSpecialProductsOpen(true)}
+                className="bg-white/20 hover:bg-white/30 text-white px-3 md:px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+               >
+                 <span className="material-icons-round text-sm">star</span>
+                 <span className="hidden md:inline">Productos Especiales</span>
+                 <span className="md:hidden">Especiales</span>
+               </button>
+             </div>
              <div className="flex-1 flex justify-center">
                {config.appTheme.logoUrl ? <img src={config.appTheme.logoUrl} className="h-10 md:h-14 object-contain" alt="Logo" /> : <h2 className="font-display text-xl md:text-2xl text-white tracking-widest uppercase italic">{config.appTheme.brandName}</h2>}
              </div>
@@ -497,6 +560,13 @@ const App: React.FC = () => {
               </div>
             )}
         </div>
+
+        <SpecialProductsModal 
+          isOpen={isSpecialProductsOpen} 
+          onClose={() => setIsSpecialProductsOpen(false)} 
+          products={config.specialProducts || []} 
+          onAddToCart={handleAddSpecialProduct}
+        />
     </div>
   );
 };

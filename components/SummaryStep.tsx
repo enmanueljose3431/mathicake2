@@ -92,6 +92,23 @@ const SummaryStep: React.FC<SummaryStepProps> = ({ appState, onUpdate, onBack, o
             <span className="text-sm font-bold text-gray-800">{appState.deliveryMethod === 'DELIVERY' ? 'Domicilio' : 'Retiro en Tienda'}</span>
             <span className="text-xs font-bold text-primary">{appState.deliveryDate} @ {appState.deliveryTime}</span>
           </div>
+
+          {appState.specialItems.length > 0 && (
+            <div className="py-4 flex flex-col">
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Productos Especiales</span>
+              <div className="space-y-2 mt-2">
+                {appState.specialItems.map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-black text-slate-800 uppercase">{item.title}</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">Cantidad: {item.quantity}</span>
+                    </div>
+                    <span className="text-xs font-black text-primary">${(item.price * item.quantity).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* SELECTOR DE PAGO */}

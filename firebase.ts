@@ -1,6 +1,6 @@
 
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import firebaseConfig from "./firebase-applet-config.json";
 
@@ -76,10 +76,43 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 try {
   const app = initializeApp(firebaseConfig);
-  // Usar el databaseId específico si está disponible en la configuración
-  db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  
+  // Intentar con la base de datos específica, si falla o no está, usar la por defecto
+  if (firebaseConfig.firestoreDatabaseId) {
+    db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+    console.log(`🔥 Intentando conectar a base de datos: ${firebaseConfig.firestoreDatabaseId}`);
+  } else {
+    db = getFirestore(app);
+    console.log("🔥 Conectando a base de datos por defecto");
+  }
+  
   auth = getAuth(app);
-  console.log("🔥 Firebase conectado exitosamente");
+  console.log("🔥 Firebase inicializado");
+
+  // Test de conexión
+  const testConnection = async () => {
+    try {
+      // Intentar obtener el documento con un timeout corto para el test
+      await getDocFromServer(doc(db, 'settings', 'appConfig'));
+      console.log("✅ Conexión a Firestore verificada");
+    } catch (error: any) {
+      console.warn("⚠️ Aviso de conexión inicial:", error.message);
+      
+      // Si falla con la base de datos específica, intentar con la por defecto como fallback
+      if (firebaseConfig.firestoreDatabaseId && (error.message.includes('offline') || error.message.includes('not-found'))) {
+        console.log("🔄 Reintentando con base de datos por defecto...");
+        try {
+          const defaultDb = getFirestore(app);
+          await getDocFromServer(doc(defaultDb, 'settings', 'appConfig'));
+          db = defaultDb;
+          console.log("✅ Conexión exitosa usando base de datos por defecto");
+        } catch (fallbackError: any) {
+          console.error("❌ Falló también la base de datos por defecto:", fallbackError.message);
+        }
+      }
+    }
+  };
+  testConnection();
 } catch (error) {
   console.error("Error inicializando Firebase:", error);
 }
