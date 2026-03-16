@@ -26,6 +26,8 @@ const AuthStep: React.FC<AuthStepProps> = ({ onSuccess, onCancel }) => {
         setError('El inicio de sesión con Google no está habilitado en la consola de Firebase.');
       } else if (err.code === 'auth/popup-blocked') {
         setError('El navegador bloqueó la ventana emergente. Por favor, permite las ventanas emergentes.');
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        setError('La ventana de inicio de sesión fue cerrada antes de completar el proceso.');
       } else {
         setError(err.message || 'Error en la autenticación con Google');
       }
@@ -59,7 +61,8 @@ const AuthStep: React.FC<AuthStepProps> = ({ onSuccess, onCancel }) => {
         </button>
 
         {error && (
-          <div className="p-3 bg-red-50 text-red-600 text-[10px] font-bold rounded-xl border border-red-100 text-center uppercase tracking-wider">
+          <div className="p-3 bg-red-50 text-red-600 text-[10px] font-bold rounded-xl border border-red-100 text-center uppercase tracking-wider flex items-center justify-center gap-2">
+            <span className="material-icons-round text-sm">error_outline</span>
             {error}
           </div>
         )}
