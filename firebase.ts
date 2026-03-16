@@ -1,12 +1,13 @@
 
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
+import { getFirestore, doc, getDocFromServer, collection } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import firebaseConfig from "./firebase-applet-config.json";
 
 // Inicializar Firebase
 let db: any = null;
 let auth: any = null;
+let inspirationCol: any = null;
 
 export enum OperationType {
   CREATE = 'create',
@@ -89,6 +90,9 @@ try {
   auth = getAuth(app);
   console.log("🔥 Firebase inicializado");
 
+  // Colecciones
+  inspirationCol = collection(db, "inspiration");
+
   // Test de conexión
   const testConnection = async () => {
     try {
@@ -117,4 +121,4 @@ try {
   console.error("Error inicializando Firebase:", error);
 }
 
-export { db, auth };
+export { db, auth, inspirationCol };

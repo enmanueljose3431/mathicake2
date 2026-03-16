@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppConfig, Order, CakeSize, Flavor, Filling, DecorationInfo, CakeColor, Notification } from '../types';
 import { db, handleFirestoreError, OperationType, safeJsonStringify } from '../firebase';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, writeBatch, addDoc } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 
 interface AdminPanelProps {
@@ -181,6 +181,41 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
         else if (type === 'filling') updateFilling(id, 'textureUrl', b64);
         else if (type === 'decoration') updateDecoration(id, 'textureUrl', b64);
       };
+      r.readAsDataURL(file);
+    }
+  };
+
+  // --- GALERÍA DE INSPIRACIÓN ---
+  const addGalleryItem = async () => {
+    const newItem = { url: 'https://picsum.photos/seed/new/600/800', style: 'liso', description: 'Nueva foto de inspiración' };
+    try {
+      await addDoc(collection(db, "inspiration"), newItem);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, "inspiration");
+    }
+  };
+
+  const removeGalleryItem = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "inspiration", id));
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `inspiration/${id}`);
+    }
+  };
+
+  const updateGalleryItem = async (id: string, field: string, value: any) => {
+    try {
+      await updateDoc(doc(db, "inspiration", id), { [field]: value });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `inspiration/${id}`);
+    }
+  };
+
+  const handleGalleryImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const r = new FileReader();
+      r.onloadend = () => updateGalleryItem(id, 'url', r.result as string);
       r.readAsDataURL(file);
     }
   };
@@ -692,10 +727,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                 <div className="flex justify-between items-center">
                   <h3 className="text-sm font-black uppercase text-slate-800">Galería de Inspiración</h3>
                   <button 
-                    onClick={() => {
-                      const newItem = { url: 'https://picsum.photos/seed/new/600/800', style: 'liso', description: 'Nueva foto de inspiración' };
-                      updateConfig({ inspirationGallery: [...config.inspirationGallery, newItem] });
-                    }}
+                    onClick={addGalleryItem}
                     className="bg-primary text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase flex items-center gap-2 shadow-lg shadow-primary/20"
                   >
                     <span className="material-icons-round text-sm">add_a_photo</span>
@@ -704,13 +736,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {config.inspirationGallery.map((item, idx) => (
-                    <div key={idx} className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-4 group relative">
+                  {config.inspirationGallery.map((item) => (
+                    <div key={item.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-4 group relative">
                       <button 
-                        onClick={() => {
-                          const next = config.inspirationGallery.filter((_, i) => i !== idx);
-                          updateConfig({ inspirationGallery: next });
-                        }}
+                        onClick={() => item.id && removeGalleryItem(item.id)}
                         className="absolute top-4 right-4 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500 shadow-sm z-10 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <span className="material-icons-round text-sm">close</span>
@@ -721,18 +750,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                         <input 
                           type="file" 
                           className="absolute inset-0 opacity-0 cursor-pointer" 
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const r = new FileReader();
-                              r.onloadend = () => {
-                                const next = [...config.inspirationGallery];
-                                next[idx] = { ...next[idx], url: r.result as string };
-                                updateConfig({ inspirationGallery: next });
-                              };
-                              r.readAsDataURL(file);
-                            }
-                          }} 
+                          onChange={(e) => item.id && handleGalleryImageUpload(item.id, e)} 
                         />
                         <div className="absolute bottom-2 right-2 bg-black/50 text-white p-2 rounded-full pointer-events-none">
                           <span className="material-icons-round text-xs">edit</span>
@@ -745,11 +763,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                           <select 
                             className="w-full bg-slate-50 rounded-xl p-3 text-[10px] font-bold border-none"
                             value={item.style}
-                            onChange={(e) => {
-                              const next = [...config.inspirationGallery];
-                              next[idx] = { ...next[idx], style: e.target.value };
-                              updateConfig({ inspirationGallery: next });
-                            }}
+                            onChange={(e) => item.id && updateGalleryItem(item.id, 'style', e.target.value)}
                           >
                             {Object.keys(config.decorations).map(k => (
                               <option key={k} value={k}>{config.decorations[k].label}</option>
@@ -761,11 +775,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                           <textarea 
                             className="w-full bg-slate-50 rounded-xl p-3 text-[10px] font-bold border-none h-20 resize-none"
                             value={item.description}
-                            onChange={(e) => {
-                              const next = [...config.inspirationGallery];
-                              next[idx] = { ...next[idx], description: e.target.value };
-                              updateConfig({ inspirationGallery: next });
-                            }}
+                            onChange={(e) => item.id && updateGalleryItem(item.id, 'description', e.target.value)}
                           />
                         </div>
                       </div>

@@ -25,6 +25,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Inspiration Gallery: Everyone can read, only admin can write
+    match /inspiration/{imageId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Orders: Everyone can create, only admin can read/update/delete
     match /orders/{orderId} {
       allow create: if true; // Allow customers to place orders

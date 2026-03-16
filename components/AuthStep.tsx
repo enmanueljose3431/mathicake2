@@ -27,7 +27,9 @@ const AuthStep: React.FC<AuthStepProps> = ({ onSuccess, onCancel }) => {
       } else if (err.code === 'auth/popup-blocked') {
         setError('El navegador bloqueó la ventana emergente. Por favor, permite las ventanas emergentes.');
       } else if (err.code === 'auth/popup-closed-by-user') {
-        setError('La ventana de inicio de sesión fue cerrada antes de completar el proceso.');
+        setError('La ventana de inicio de sesión se cerró antes de completar el proceso.');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError('Este dominio no está autorizado en la configuración de Firebase.');
       } else {
         setError(err.message || 'Error en la autenticación con Google');
       }

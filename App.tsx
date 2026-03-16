@@ -268,13 +268,27 @@ const App: React.FC = () => {
       if (docSnap.exists()) {
         // Al recibir cambios de Firestore, volvemos a aplicar los datos de Sheets para que sigan mandando
         const firestoreData = docSnap.data() as AppConfig;
-        setConfig(prev => ({ ...prev, ...firestoreData, ...sheetConfigRef.current }));
+        // No sobreescribir la galería si ya tenemos datos de la colección dedicada
+        setConfig(prev => ({ ...prev, ...firestoreData, ...sheetConfigRef.current, inspirationGallery: prev.inspirationGallery }));
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, "settings/appConfig");
     });
 
-    return () => { unsubscribeConfig(); };
+    // --- INSPIRATION GALLERY SYNC ---
+    const unsubscribeInspiration = onSnapshot(collection(db, "inspiration"), (snapshot) => {
+      const gallery = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+      if (gallery.length > 0) {
+        setConfig(prev => ({ ...prev, inspirationGallery: gallery }));
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, "inspiration");
+    });
+
+    return () => { 
+      unsubscribeConfig(); 
+      unsubscribeInspiration();
+    };
   }, []);
 
   // --- ORDERS SYNC (Admin Only) ---
@@ -365,7 +379,11 @@ const App: React.FC = () => {
   const handleUpdateConfig = async (newConfig: AppConfig) => {
     setConfig(newConfig);
     try {
-      if (db) await setDoc(doc(db, "settings", "appConfig"), newConfig);
+      if (db) {
+        // Separamos la galería para no saturar el documento de configuración (límite 1MB)
+        const { inspirationGallery: _ig, ...configToSave } = newConfig;
+        await setDoc(doc(db, "settings", "appConfig"), configToSave);
+      }
     } catch (e) {
       handleFirestoreError(e, OperationType.WRITE, "settings/appConfig");
     }

@@ -56,6 +56,7 @@ export interface DecorationInfo {
 }
 
 export interface InspirationImage {
+  id?: string;
   url: string;
   style: string;
   description?: string;
