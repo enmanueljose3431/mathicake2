@@ -871,6 +871,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                      </div>
 
                      <div className="pt-6 border-t border-slate-100">
+                        <h4 className="text-[10px] font-black uppercase text-slate-800 mb-4">Funcionalidades</h4>
+                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
+                          <div className="flex items-center gap-3">
+                            <span className="material-icons-round text-primary">smart_toy</span>
+                            <div>
+                              <p className="text-[10px] font-black uppercase text-slate-800">Chat con Inteligencia Artificial</p>
+                              <p className="text-[8px] font-bold text-slate-400">Permite a los clientes asesorarse con MathiBot</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => updateConfig({ isChatEnabled: !config.isChatEnabled })}
+                            className={`w-12 h-6 rounded-full transition-colors relative ${config.isChatEnabled ? 'bg-primary' : 'bg-slate-300'}`}
+                          >
+                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${config.isChatEnabled ? 'right-1' : 'left-1'}`} />
+                          </button>
+                        </div>
+                      </div>
+
+                     <div className="pt-6 border-t border-slate-100">
                         <h4 className="text-[10px] font-black uppercase text-slate-800 mb-4">Sincronización Externa</h4>
                         <button 
                            onClick={async () => {

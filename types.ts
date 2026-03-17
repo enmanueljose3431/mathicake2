@@ -104,6 +104,7 @@ export interface AppConfig {
   appTheme: AppTheme;
   inspirationGallery: InspirationImage[];
   specialProducts?: SpecialProduct[];
+  isChatEnabled?: boolean;
 }
 
 export interface Order {
@@ -176,4 +177,5 @@ export interface AppState {
   whatsappUrl?: string;
   paymentStrategy: PaymentStrategy;
   specialItems: { productId: string; title: string; price: number; quantity: number }[];
+  isChatEnabled: boolean;
 }

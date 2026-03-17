@@ -14,6 +14,7 @@ import AdminPanel from './components/AdminPanel';
 import AuthStep from './components/AuthStep';
 import UserDashboard from './components/UserDashboard';
 import SpecialProductsModal from './components/SpecialProductsModal';
+import ChatAssistant from './components/ChatAssistant';
 
 // Firebase imports
 import { db, auth, handleFirestoreError, OperationType, safeJsonStringify } from './firebase';
@@ -72,7 +73,8 @@ const DEFAULT_CONFIG: AppConfig = {
       characteristics: ['Sabor a vainilla clásica', 'Diseños detallados', 'Empaque individual disponible'],
       price: 18
     }
-  ]
+  ],
+  isChatEnabled: true
 };
 
 const App: React.FC = () => {
@@ -108,7 +110,8 @@ const App: React.FC = () => {
     customFilling: '',
     paymentStrategy: 'FIFTY_PERCENT',
     specialItems: [],
-  }), [config.sizes, config.flavors, config.fillings]);
+    isChatEnabled: config.isChatEnabled ?? true,
+  }), [config.sizes, config.flavors, config.fillings, config.isChatEnabled]);
 
   const [state, setState] = useState<AppState>(() => getInitialState());
 
@@ -584,6 +587,12 @@ const App: React.FC = () => {
           onClose={() => setIsSpecialProductsOpen(false)} 
           products={config.specialProducts || []} 
           onAddToCart={handleAddSpecialProduct}
+        />
+        <ChatAssistant 
+          config={config} 
+          onNavigateToSummary={handleGoToSummary} 
+          onUpdateState={updateAppState}
+          isEnabled={config.isChatEnabled ?? true}
         />
     </div>
   );

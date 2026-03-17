@@ -1,5 +1,7 @@
 
-import React from 'react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { X, ZoomIn } from 'lucide-react';
 import { DecorationStyle, TopperType, AppState, AppConfig, CakeSize } from '../types';
 
 interface DecorationStepProps {
@@ -27,6 +29,8 @@ const DecorationStep: React.FC<DecorationStepProps> = ({
   totalPrice,
   config
 }) => {
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+
   const styles = {
     liso: { label: "Liso", icon: "crop_square" },
     vintage: { label: "Vintage", icon: "auto_awesome" },
@@ -269,31 +273,36 @@ const DecorationStep: React.FC<DecorationStepProps> = ({
               Mira algunos de nuestros trabajos previos y el estilo utilizado en cada uno:
             </p>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
               {config.inspirationGallery.map((item, idx) => {
                 const styleInfo = config.decorations[item.style] || { label: item.style };
                 return (
-                  <div key={idx} className="group relative bg-white rounded-[2.5rem] overflow-hidden shadow-soft border border-gray-100 hover:shadow-xl transition-all duration-500 hover:-translate-y-2">
-                    <div className="aspect-[3/4] overflow-hidden relative">
+                  <div key={idx} className="group relative bg-white rounded-3xl md:rounded-[2.5rem] overflow-hidden shadow-soft border border-gray-100 hover:shadow-xl transition-all duration-500 hover:-translate-y-2">
+                    <div className="aspect-[3/4] overflow-hidden relative cursor-pointer" onClick={() => setLightboxImage(item.url)}>
                       <img 
                         src={item.url} 
                         alt={`Inspiración ${idx}`} 
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                         referrerPolicy="no-referrer"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-6">
-                        <p className="text-white text-[10px] md:text-xs font-bold leading-relaxed">{item.description}</p>
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="bg-white/20 backdrop-blur-md p-3 rounded-full text-white">
+                          <ZoomIn className="w-6 h-6" />
+                        </div>
+                      </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 md:group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-4 md:p-6">
+                        <p className="text-white text-[8px] md:text-xs font-bold leading-relaxed line-clamp-2">{item.description}</p>
                       </div>
                     </div>
-                    <div className="p-6 flex flex-col items-center gap-3">
-                      <span className="text-[9px] md:text-[10px] font-black text-primary uppercase tracking-[0.2em] bg-primary/5 px-4 py-1.5 rounded-full border border-primary/10">
+                    <div className="p-3 md:p-6 flex flex-col items-center gap-2 md:gap-3">
+                      <span className="text-[7px] md:text-[10px] font-black text-primary uppercase tracking-[0.1em] md:tracking-[0.2em] bg-primary/5 px-2 md:px-4 py-1 md:py-1.5 rounded-full border border-primary/10 text-center">
                         Estilo: {styleInfo.label}
                       </span>
                       <button 
                         onClick={() => onUpdateDecoration({ selectedDecoration: item.style })}
-                        className="w-full py-3 rounded-2xl bg-slate-50 hover:bg-primary hover:text-white text-slate-400 text-[9px] font-black uppercase tracking-widest transition-all"
+                        className="w-full py-2 md:py-3 rounded-xl md:rounded-2xl bg-slate-50 hover:bg-primary hover:text-white text-slate-400 text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all"
                       >
-                        Usar este estilo
+                        Usar estilo
                       </button>
                     </div>
                   </div>
@@ -303,6 +312,36 @@ const DecorationStep: React.FC<DecorationStepProps> = ({
           </section>
         </div>
       </main>
+
+      <AnimatePresence>
+        {lightboxImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1000] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setLightboxImage(null)}
+          >
+            <motion.button
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="absolute top-6 right-6 text-white bg-white/10 p-3 rounded-full hover:bg-white/20 transition-colors"
+              onClick={() => setLightboxImage(null)}
+            >
+              <X className="w-6 h-6" />
+            </motion.button>
+            <motion.img
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              src={lightboxImage}
+              alt="Lightbox"
+              className="max-w-full max-h-full rounded-2xl shadow-2xl"
+              referrerPolicy="no-referrer"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <footer className="bg-surface-light p-5 md:p-8 z-50 shadow-[0_-15px_35px_rgba(0,0,0,0.03)] rounded-t-[2.5rem] md:rounded-t-[3.5rem] border-t border-gray-100 shrink-0">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-5 md:gap-8">
