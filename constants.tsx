@@ -67,31 +67,37 @@ export const SATURATED_COLOR_SURCHARGE = 5;
 
 export const INSPIRATION_GALLERY: InspirationImage[] = [
   { 
+    id: 'gal_1',
     url: 'https://picsum.photos/seed/cake1/600/800', 
     style: 'vintage', 
     description: 'Pastel Vintage con tonos pasteles y perlas decorativas.' 
   },
   { 
+    id: 'gal_2',
     url: 'https://picsum.photos/seed/cake2/600/800', 
     style: 'liso', 
     description: 'Acabado liso minimalista con flores naturales.' 
   },
   { 
+    id: 'gal_3',
     url: 'https://picsum.photos/seed/cake3/600/800', 
     style: 'degradado', 
     description: 'Efecto degradado de azul a blanco con toppers dorados.' 
   },
   { 
+    id: 'gal_4',
     url: 'https://picsum.photos/seed/cake4/600/800', 
     style: 'textura', 
     description: 'Textura rayada moderna con esferas de chocolate.' 
   },
   { 
+    id: 'gal_5',
     url: 'https://picsum.photos/seed/cake5/600/800', 
     style: 'vintage', 
     description: 'Diseño retro con crema de mantequilla y cerezas.' 
   },
   { 
+    id: 'gal_6',
     url: 'https://picsum.photos/seed/cake6/600/800', 
     style: 'liso', 
     description: 'Color saturado con drip de chocolate y galletas.' 

@@ -101,7 +101,31 @@ const SummaryStep: React.FC<SummaryStepProps> = ({ appState, onUpdate, onBack, o
                   <div key={idx} className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
                     <div className="flex flex-col">
                       <span className="text-[11px] font-black text-slate-800 uppercase">{item.title}</span>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase">Cantidad: {item.quantity}</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <button 
+                          onClick={() => {
+                            const newItems = appState.specialItems.map(si => 
+                              si.productId === item.productId ? { ...si, quantity: Math.max(0, si.quantity - 1) } : si
+                            ).filter(si => si.quantity > 0);
+                            onUpdate({ specialItems: newItems });
+                          }}
+                          className="w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-colors"
+                        >
+                          <span className="material-icons-round text-xs">remove</span>
+                        </button>
+                        <span className="text-[11px] font-bold text-slate-600 w-4 text-center">{item.quantity}</span>
+                        <button 
+                          onClick={() => {
+                            const newItems = appState.specialItems.map(si => 
+                              si.productId === item.productId ? { ...si, quantity: si.quantity + 1 } : si
+                            );
+                            onUpdate({ specialItems: newItems });
+                          }}
+                          className="w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-colors"
+                        >
+                          <span className="material-icons-round text-xs">add</span>
+                        </button>
+                      </div>
                     </div>
                     <span className="text-xs font-black text-primary">${(item.price * item.quantity).toFixed(2)}</span>
                   </div>

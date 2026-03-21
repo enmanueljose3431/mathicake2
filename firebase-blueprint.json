@@ -67,6 +67,32 @@
           }
         }
       }
+    },
+    "SpecialProduct": {
+      "title": "SpecialProduct",
+      "description": "Special products for the carrousel",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "characteristics": { "type": "array", "items": { "type": "string" } },
+        "price": { "type": "number" }
+      },
+      "required": ["id", "title", "imageUrl", "price"]
+    },
+    "InspirationGalleryItem": {
+      "title": "InspirationGalleryItem",
+      "description": "Item in the inspiration gallery",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "url": { "type": "string" },
+        "style": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["id", "url", "style"]
     }
   },
   "firestore": {
@@ -81,6 +107,14 @@
     "/settings/appConfig": {
       "schema": "AppConfig",
       "description": "Global application configuration"
+    },
+    "/special_products/{productId}": {
+      "schema": "SpecialProduct",
+      "description": "Collection of special products"
+    },
+    "/inspiration/{imageId}": {
+      "schema": "InspirationGalleryItem",
+      "description": "Collection of inspiration gallery items"
     }
   }
 }

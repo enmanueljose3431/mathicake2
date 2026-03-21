@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppConfig, Order, CakeSize, Flavor, Filling, DecorationInfo, CakeColor, Notification } from '../types';
 import { db, handleFirestoreError, OperationType, safeJsonStringify } from '../firebase';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, writeBatch, addDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, writeBatch, addDoc, setDoc, limit } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 
 interface AdminPanelProps {
@@ -21,15 +21,72 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeleteOrderId, setConfirmDeleteOrderId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+
+  const compressImage = (file: File, maxWidth = 800, maxHeight = 800, quality = 0.7): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height *= maxWidth / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width *= maxHeight / height;
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality)); 
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
+  };
+  const [confirmAction, setConfirmAction] = useState<{
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  useEffect(() => {
+    if (!db || !user || user.email !== 'enmanueljose3431@gmail.com') {
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        // No additional data to fetch for now
+      } catch (error) {
+        console.error("Error fetching admin data:", error);
+      }
+    };
+
+    fetchData();
+  }, [user]);
 
   useEffect(() => {
     if (!db || !user || user.email !== 'enmanueljose3431@gmail.com') {
       setNotifications([]);
       return;
     }
-    const q = query(collection(db, "notifications"), orderBy("timestamp", "desc"));
+    const q = query(collection(db, "notifications"), orderBy("timestamp", "desc"), limit(50));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Notification[];
       setNotifications(notifs);
@@ -78,9 +135,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
     }
   }, [isSaving]);
 
+  useEffect(() => {
+    if (statusMessage) {
+      const timer = setTimeout(() => setStatusMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [statusMessage]);
+
   const updateConfig = (newPart: Partial<AppConfig>) => {
     setIsSaving(true);
-    onUpdateConfig({ ...config, ...newPart });
+    const updated = { ...config, ...newPart };
+    onUpdateConfig(updated);
   };
 
   // --- MOLDES ---
@@ -119,34 +184,63 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
   };
 
   // --- PRODUCTOS ESPECIALES ---
-  const addSpecialProduct = () => {
+  const addSpecialProduct = async () => {
     const n = {
-      id: `sp_${Date.now()}`,
       title: 'Nuevo Producto',
       description: 'Descripción del producto',
       imageUrl: 'https://picsum.photos/seed/new/400/300',
       characteristics: ['Característica 1'],
       price: 10
     };
-    updateConfig({ specialProducts: [...(config.specialProducts || []), n] });
+    try {
+      await addDoc(collection(db, "special_products"), n);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, "special_products");
+    }
   };
 
-  const removeSpecialProduct = (id: string) => {
-    updateConfig({ specialProducts: (config.specialProducts || []).filter(p => p.id !== id) });
+  const removeSpecialProduct = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "special_products", id));
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `special_products/${id}`);
+    }
   };
 
-  const updateSpecialProduct = (id: string, field: string, value: any) => {
-    updateConfig({
-      specialProducts: (config.specialProducts || []).map(p => p.id === id ? { ...p, [field]: value } : p)
+  const specialProductTimeouts = React.useRef<Record<string, any>>({});
+  const updateSpecialProduct = async (id: string, field: string, value: any) => {
+    const item = (config.specialProducts || []).find(p => p.id === id);
+    if (!item) return;
+    
+    // Update local state immediately for UI responsiveness
+    const updatedItem = { ...item, [field]: value };
+    updateConfig({ 
+      specialProducts: (config.specialProducts || []).map(p => p.id === id ? updatedItem : p) 
     });
+
+    if (specialProductTimeouts.current[id]) {
+      clearTimeout(specialProductTimeouts.current[id]);
+    }
+
+    specialProductTimeouts.current[id] = setTimeout(async () => {
+      try {
+        await setDoc(doc(db, "special_products", id), updatedItem, { merge: true });
+      } catch (e) {
+        handleFirestoreError(e, OperationType.UPDATE, `special_products/${id}`);
+      }
+    }, 1500);
   };
 
-  const handleSpecialImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSpecialImageUpload = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const r = new FileReader();
-      r.onloadend = () => updateSpecialProduct(id, 'imageUrl', r.result as string);
-      r.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file);
+        await updateSpecialProduct(id, 'imageUrl', compressed);
+      } catch (e) {
+        console.error("Error uploading special image:", e);
+        setStatusMessage({ text: "Error al subir la imagen", type: 'error' });
+      }
     }
   };
 
@@ -171,17 +265,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
     updateConfig({ decorations: next });
   };
 
-  const handleImageUpload = (id: string, type: 'flavor' | 'filling' | 'decoration', e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (id: string, type: 'flavor' | 'filling' | 'decoration', e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const r = new FileReader();
-      r.onloadend = () => {
-        const b64 = r.result as string;
-        if (type === 'flavor') updateFlavor(id, 'textureUrl', b64);
-        else if (type === 'filling') updateFilling(id, 'textureUrl', b64);
-        else if (type === 'decoration') updateDecoration(id, 'textureUrl', b64);
-      };
-      r.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file, 200, 200, 0.5); // Much smaller for textures
+        if (type === 'flavor') updateFlavor(id, 'textureUrl', compressed);
+        else if (type === 'filling') updateFilling(id, 'textureUrl', compressed);
+        else if (type === 'decoration') updateDecoration(id, 'textureUrl', compressed);
+      } catch (e) {
+        console.error("Error uploading texture image:", e);
+        setStatusMessage({ text: "Error al subir la imagen", type: 'error' });
+      }
     }
   };
 
@@ -203,20 +298,40 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
     }
   };
 
+  const galleryTimeouts = React.useRef<Record<string, any>>({});
   const updateGalleryItem = async (id: string, field: string, value: any) => {
-    try {
-      await updateDoc(doc(db, "inspiration", id), { [field]: value });
-    } catch (e) {
-      handleFirestoreError(e, OperationType.UPDATE, `inspiration/${id}`);
+    const item = config.inspirationGallery.find(i => i.id === id);
+    if (!item) return;
+    
+    // Update local state immediately
+    const updatedItem = { ...item, [field]: value };
+    updateConfig({ 
+      inspirationGallery: config.inspirationGallery.map(i => i.id === id ? updatedItem : i) 
+    });
+
+    if (galleryTimeouts.current[id]) {
+      clearTimeout(galleryTimeouts.current[id]);
     }
+
+    galleryTimeouts.current[id] = setTimeout(async () => {
+      try {
+        await setDoc(doc(db, "inspiration", id), updatedItem, { merge: true });
+      } catch (e) {
+        handleFirestoreError(e, OperationType.UPDATE, `inspiration/${id}`);
+      }
+    }, 1500);
   };
 
-  const handleGalleryImageUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGalleryImageUpload = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const r = new FileReader();
-      r.onloadend = () => updateGalleryItem(id, 'url', r.result as string);
-      r.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file);
+        await updateGalleryItem(id, 'url', compressed);
+      } catch (e) {
+        console.error("Error uploading gallery image:", e);
+        setStatusMessage({ text: "Error al subir la imagen", type: 'error' });
+      }
     }
   };
 
@@ -266,11 +381,42 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
           <div className="flex items-center gap-4">
              <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 text-slate-600"><span className="material-icons-round">menu</span></button>
              <h2 className="text-lg font-black text-slate-800 uppercase tracking-tighter">{menuItems.find(i => i.id === activeTab)?.label}</h2>
+             {statusMessage && (
+               <div className={`ml-4 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest animate-fade-in ${statusMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                 {statusMessage.text}
+               </div>
+             )}
           </div>
           {isSaving && (
             <div className="flex items-center gap-2 text-primary font-black uppercase text-[10px] animate-pulse">
-              <span className="material-icons-round text-sm">sync</span>
+              <span className="material-icons-round text-sm animate-spin">sync</span>
               Sincronizando...
+            </div>
+          )}
+
+          {confirmAction && (
+            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+              <div className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl border border-slate-100 animate-scale-in">
+                <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <span className="material-icons-round text-amber-500 text-3xl">help_outline</span>
+                </div>
+                <h3 className="text-center text-slate-800 font-black uppercase tracking-tight mb-4">Confirmar Acción</h3>
+                <p className="text-center text-slate-500 text-xs font-medium leading-relaxed mb-8">{confirmAction.message}</p>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => confirmAction.onConfirm()}
+                    className="flex-1 bg-primary text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 active:scale-95 transition-all"
+                  >
+                    Confirmar
+                  </button>
+                  <button 
+                    onClick={() => setConfirmAction(null)}
+                    className="flex-1 bg-slate-100 text-slate-600 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </header>
@@ -284,26 +430,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                      <h3 className="text-sm font-black uppercase text-slate-800">Pedidos ({orders.length})</h3>
                      <button 
                         onClick={async () => {
-                           if (window.confirm("¿Deseas sincronizar todos los pedidos actuales de Firestore a Google Sheets?")) {
-                              setIsSaving(true);
-                              try {
-                                 const res = await fetch('/api/sync-all-orders-to-sheets', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: safeJsonStringify(orders)
-                                 });
-                                 if (res.ok) {
-                                    alert("✅ Pedidos sincronizados exitosamente");
-                                 } else {
-                                    const errorData = await res.json();
-                                    alert(`❌ Error al sincronizar: ${errorData.message || errorData.error || 'Error desconocido'}`);
+                           setConfirmAction({
+                              message: "¿Deseas sincronizar todos los pedidos actuales de Firestore a Google Sheets?",
+                              onConfirm: async () => {
+                                 setConfirmAction(null);
+                                 setIsSaving(true);
+                                 try {
+                                    const res = await fetch('/api/sync-all-orders-to-sheets', {
+                                       method: 'POST',
+                                       headers: { 'Content-Type': 'application/json' },
+                                       body: safeJsonStringify(orders)
+                                    });
+                                    if (res.ok) {
+                                       setStatusMessage({ text: "Pedidos sincronizados exitosamente", type: 'success' });
+                                    } else {
+                                       const errorData = await res.json();
+                                       setStatusMessage({ text: `Error al sincronizar: ${errorData.message || errorData.error || 'Error desconocido'}`, type: 'error' });
+                                    }
+                                 } catch (_e) {
+                                    setStatusMessage({ text: "Error de conexión", type: 'error' });
+                                 } finally {
+                                    setIsSaving(false);
                                  }
-                              } catch (_e) {
-                                 alert("❌ Error de conexión");
-                              } finally {
-                                 setIsSaving(false);
                               }
-                           }
+                           });
                         }}
                         className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase hover:bg-slate-700 transition-all"
                      >
@@ -350,13 +500,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                                 ENTREGADO
                              </button>
                            )}
-                           {confirmDeleteId === o.id ? (
+                           {confirmDeleteOrderId === o.id ? (
                              <div className="flex gap-2">
                                <button 
                                  onClick={(e) => {
                                    e.stopPropagation();
                                    onDeleteOrder(o.id);
-                                   setConfirmDeleteId(null);
+                                   setConfirmDeleteOrderId(null);
                                  }}
                                  className="flex-1 bg-red-600 text-white py-2.5 rounded-xl text-[9px] font-black uppercase transition-all active:scale-95 shadow-sm"
                                >
@@ -365,7 +515,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                                <button 
                                  onClick={(e) => {
                                    e.stopPropagation();
-                                   setConfirmDeleteId(null);
+                                   setConfirmDeleteOrderId(null);
                                  }}
                                  className="flex-1 bg-slate-200 text-slate-600 py-2.5 rounded-xl text-[9px] font-black uppercase transition-all active:scale-95 shadow-sm"
                                >
@@ -376,7 +526,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                              <button 
                                onClick={(e) => {
                                  e.stopPropagation();
-                                 setConfirmDeleteId(o.id);
+                                 setConfirmDeleteOrderId(o.id);
                                }}
                                className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-red-600 text-slate-400 hover:text-white py-2.5 rounded-xl text-[9px] font-black uppercase transition-all active:scale-95 shadow-sm border border-slate-200"
                              >
@@ -736,8 +886,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {config.inspirationGallery.map((item) => (
-                    <div key={item.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-4 group relative">
+                  {config.inspirationGallery.map((item, idx) => (
+                    <div key={item.id || idx} className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-4 group relative">
                       <button 
                         onClick={() => item.id && removeGalleryItem(item.id)}
                         className="absolute top-4 right-4 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center text-slate-300 hover:text-red-500 shadow-sm z-10 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -844,12 +994,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                      <div className="flex items-center gap-8 p-6 bg-slate-50 rounded-3xl">
                         <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center border-2 border-dashed border-slate-300 relative overflow-hidden shrink-0">
                            {config.appTheme.logoUrl ? <img src={config.appTheme.logoUrl} className="w-full h-full object-contain" /> : <span className="material-icons-round text-slate-300">add_photo_alternate</span>}
-                           <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => {
+                           <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                 const r = new FileReader();
-                                 r.onloadend = () => updateConfig({ appTheme: { ...config.appTheme, logoUrl: r.result as string } });
-                                 r.readAsDataURL(file);
+                                 try {
+                                    const compressed = await compressImage(file, 300, 300);
+                                    updateConfig({ appTheme: { ...config.appTheme, logoUrl: compressed } });
+                                 } catch (e) {
+                                    console.error("Error uploading logo:", e);
+                                    setStatusMessage({ text: "Error al subir el logo", type: 'error' });
+                                 }
                               }
                            }} />
                         </div>
@@ -893,22 +1047,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                         <h4 className="text-[10px] font-black uppercase text-slate-800 mb-4">Sincronización Externa</h4>
                         <button 
                            onClick={async () => {
-                              if (window.confirm("¿Deseas exportar toda la configuración actual (precios, sabores, etc.) a tu Google Sheet? Esto sobrescribirá las pestañas existentes.")) {
-                                 setIsSaving(true);
-                                 try {
-                                    const res = await fetch('/api/export-to-sheets', {
-                                       method: 'POST',
-                                       headers: { 'Content-Type': 'application/json' },
-                                       body: safeJsonStringify(config)
-                                    });
-                                    if (res.ok) alert("✅ Configuración exportada exitosamente a Google Sheets");
-                                    else alert("❌ Error al exportar. Revisa los logs del servidor.");
-                                 } catch (_e) {
-                                    alert("❌ Error de conexión");
-                                 } finally {
-                                    setIsSaving(false);
-                                 }
-                              }
+                              setConfirmAction({
+                                message: "¿Deseas exportar toda la configuración actual (precios, sabores, etc.) a tu Google Sheet? Esto sobrescribirá las pestañas existentes.",
+                                onConfirm: async () => {
+                                  setIsSaving(true);
+                                  try {
+                                     const res = await fetch('/api/export-to-sheets', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: safeJsonStringify(config)
+                                     });
+                                     if (res.ok) setStatusMessage({ text: "Configuración exportada exitosamente a Google Sheets", type: 'success' });
+                                     else setStatusMessage({ text: "Error al exportar. Revisa los logs del servidor.", type: 'error' });
+                                  } catch (_e) {
+                                     setStatusMessage({ text: "Error de conexión", type: 'error' });
+                                  } finally {
+                                     setIsSaving(false);
+                                  }
+                                }
+                              });
                            }}
                            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase text-xs transition-all flex items-center justify-center gap-3 shadow-lg shadow-emerald-200"
                         >
@@ -922,17 +1079,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ config, onUpdateConfig, onRefre
                         <h4 className="text-[10px] font-black uppercase text-slate-800 mb-4">Importar desde Excel</h4>
                         <button 
                            onClick={async () => {
-                              if (window.confirm("¿Deseas importar la configuración desde Google Sheets? Esto sobrescribirá los ajustes actuales en el Panel de Administración.")) {
-                                 setIsSaving(true);
-                                 try {
-                                    await onRefreshFromSheets();
-                                    alert("✅ Configuración importada exitosamente desde Google Sheets");
-                                 } catch (_e) {
-                                    alert("❌ Error al importar. Revisa la conexión con Google Sheets.");
-                                 } finally {
-                                    setIsSaving(false);
-                                 }
-                              }
+                              setConfirmAction({
+                                message: "¿Deseas importar la configuración desde Google Sheets? Esto sobrescribirá los ajustes actuales en el Panel de Administración.",
+                                onConfirm: async () => {
+                                  setIsSaving(true);
+                                  try {
+                                     await onRefreshFromSheets();
+                                     setStatusMessage({ text: "Configuración importada exitosamente desde Google Sheets", type: 'success' });
+                                  } catch (_e) {
+                                     setStatusMessage({ text: "Error al importar. Revisa la conexión con Google Sheets.", type: 'error' });
+                                  } finally {
+                                     setIsSaving(false);
+                                  }
+                                }
+                              });
                            }}
                            className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-xs transition-all flex items-center justify-center gap-3 shadow-lg shadow-blue-200"
                         >

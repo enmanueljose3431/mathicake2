@@ -1,6 +1,6 @@
 
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, getDocFromServer, collection } from "firebase/firestore";
+import { getFirestore, doc, getDocFromServer, collection, enableIndexedDbPersistence } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import firebaseConfig from "./firebase-applet-config.json";
 
@@ -51,8 +51,15 @@ export function safeJsonStringify(obj: any) {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  
+  // Check for quota exceeded
+  if (errorMessage.includes('resource-exhausted') || errorMessage.includes('Quota exceeded')) {
+    console.error('❌ Firestore Quota Exceeded: The daily free tier write limit (20,000 writes) has been reached. It will reset in 24 hours.');
+  }
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMessage,
     authInfo: {
       userId: auth?.currentUser?.uid,
       email: auth?.currentUser?.email,
@@ -89,6 +96,17 @@ try {
   
   auth = getAuth(app);
   console.log("🔥 Firebase inicializado");
+
+  // Habilitar persistencia offline
+  if (typeof window !== "undefined") {
+    enableIndexedDbPersistence(db).catch((err) => {
+      if (err.code === 'failed-precondition') {
+        console.warn("Firestore persistence failed: Multiple tabs open");
+      } else if (err.code === 'unimplemented') {
+        console.warn("Firestore persistence failed: Browser not supported");
+      }
+    });
+  }
 
   // Colecciones
   inspirationCol = collection(db, "inspiration");

@@ -10,9 +10,11 @@ interface SpecialProductsModalProps {
   onClose: () => void;
   products: SpecialProduct[];
   onAddToCart: (product: SpecialProduct) => void;
+  onRemoveFromCart: (productId: string) => void;
+  specialItems: { productId: string; quantity: number }[];
 }
 
-const SpecialProductsModal: React.FC<SpecialProductsModalProps> = ({ isOpen, onClose, products, onAddToCart }) => {
+const SpecialProductsModal: React.FC<SpecialProductsModalProps> = ({ isOpen, onClose, products, onAddToCart, onRemoveFromCart, specialItems }) => {
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [addedFeedback, setAddedFeedback] = React.useState(false);
 
@@ -26,15 +28,21 @@ const SpecialProductsModal: React.FC<SpecialProductsModalProps> = ({ isOpen, onC
     setAddedFeedback(false);
   };
 
+  const currentProduct = products[currentIndex];
+  const currentItemInCart = specialItems.find(item => item.productId === currentProduct?.id);
+  const quantityInCart = currentItemInCart?.quantity || 0;
+
   const handleAddToCart = () => {
-    onAddToCart(products[currentIndex]);
+    onAddToCart(currentProduct);
     setAddedFeedback(true);
     setTimeout(() => setAddedFeedback(false), 2000);
   };
 
-  if (!isOpen) return null;
+  const handleRemoveFromCart = () => {
+    onRemoveFromCart(currentProduct.id);
+  };
 
-  const currentProduct = products[currentIndex];
+  if (!isOpen || !currentProduct) return null;
 
   return (
     <AnimatePresence>
@@ -111,7 +119,7 @@ const SpecialProductsModal: React.FC<SpecialProductsModalProps> = ({ isOpen, onC
                   <h3 className="text-sm font-black uppercase tracking-widest text-gray-400">Características</h3>
                   <div className="grid grid-cols-1 gap-3">
                     {currentProduct.characteristics.map((char, idx) => (
-                      <div key={idx} className="flex items-center gap-3 text-gray-700">
+                      <div key={`char-${currentProduct.id}-${idx}`} className="flex items-center gap-3 text-gray-700">
                         <div className="w-6 h-6 rounded-full bg-secondary/20 flex items-center justify-center text-secondary">
                           <Star size={14} fill="currentColor" />
                         </div>
@@ -127,33 +135,54 @@ const SpecialProductsModal: React.FC<SpecialProductsModalProps> = ({ isOpen, onC
                     <span className="text-4xl font-black text-primary">${currentProduct.price.toFixed(2)}</span>
                   </div>
 
-                  <button
-                    onClick={handleAddToCart}
-                    className={`w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-lg ${
-                      addedFeedback 
-                      ? 'bg-green-500 text-white shadow-green-200' 
-                      : 'bg-gray-900 text-white hover:bg-black shadow-gray-200'
-                    }`}
-                  >
-                    {addedFeedback ? (
-                      <>
-                        <Check size={18} />
-                        Añadido
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart size={18} />
-                        Añadir a la compra
-                      </>
-                    )}
-                  </button>
+                  {quantityInCart > 0 ? (
+                    <div className="flex items-center gap-4 bg-gray-100 p-2 rounded-2xl">
+                      <button
+                        onClick={handleRemoveFromCart}
+                        className="w-12 h-12 flex items-center justify-center bg-white rounded-xl text-gray-800 hover:text-primary transition-colors shadow-sm"
+                      >
+                        <span className="material-icons-round">remove</span>
+                      </button>
+                      <div className="flex flex-col items-center min-w-[3rem]">
+                        <span className="text-2xl font-black text-gray-900">{quantityInCart}</span>
+                        <span className="text-[8px] font-black uppercase tracking-widest text-gray-400">En el carrito</span>
+                      </div>
+                      <button
+                        onClick={handleAddToCart}
+                        className="w-12 h-12 flex items-center justify-center bg-white rounded-xl text-gray-800 hover:text-primary transition-colors shadow-sm"
+                      >
+                        <span className="material-icons-round">add</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleAddToCart}
+                      className={`w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-lg ${
+                        addedFeedback 
+                        ? 'bg-green-500 text-white shadow-green-200' 
+                        : 'bg-gray-900 text-white hover:bg-black shadow-gray-200'
+                      }`}
+                    >
+                      {addedFeedback ? (
+                        <>
+                          <Check size={18} />
+                          Añadido
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart size={18} />
+                          Añadir a la compra
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
 
                 <div className="mt-10 flex items-center justify-between">
                   <div className="flex gap-2">
                     {products.map((_, idx) => (
                       <div
-                        key={idx}
+                        key={`dot-${idx}`}
                         className={`h-1.5 rounded-full transition-all duration-300 ${
                           idx === currentIndex ? 'w-8 bg-primary' : 'w-2 bg-gray-200'
                         }`}

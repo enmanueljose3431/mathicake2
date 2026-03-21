@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Step, AppState, AppConfig, Order, CakeSize, Flavor, Filling, SpecialProduct } from './types';
 import { CAKE_SIZES, FLAVORS, FILLINGS, DECORATIONS, TOPPER_PRICES, SPHERES_PRICE, CAKE_COLORS, SATURATED_COLOR_SURCHARGE, INSPIRATION_GALLERY } from './constants';
 import SizeStep from './components/SizeStep';
@@ -18,7 +18,7 @@ import ChatAssistant from './components/ChatAssistant';
 
 // Firebase imports
 import { db, auth, handleFirestoreError, OperationType, safeJsonStringify } from './firebase';
-import { collection, onSnapshot, doc, setDoc, getDoc, deleteDoc, updateDoc, addDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, getDoc, deleteDoc, updateDoc, addDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 
 const DEFAULT_CONFIG: AppConfig = {
@@ -137,6 +137,23 @@ const App: React.FC = () => {
       return { ...prev, specialItems: newItems };
     });
   };
+
+  const handleDecreaseSpecialProduct = (productId: string) => {
+    setState(prev => {
+      const existing = prev.specialItems.find(item => item.productId === productId);
+      if (!existing) return prev;
+
+      let newItems;
+      if (existing.quantity > 1) {
+        newItems = prev.specialItems.map(item => 
+          item.productId === productId ? { ...item, quantity: item.quantity - 1 } : item
+        );
+      } else {
+        newItems = prev.specialItems.filter(item => item.productId !== productId);
+      }
+      return { ...prev, specialItems: newItems };
+    });
+  };
   const handleGoToAdminLogin = () => navigateTo('ADMIN_LOGIN');
   const handleGoToAuth = () => navigateTo('AUTH');
   const handleGoToDashboard = () => navigateTo('USER_DASHBOARD');
@@ -228,24 +245,33 @@ const App: React.FC = () => {
       try {
         let finalConfig = { ...DEFAULT_CONFIG };
 
-        // 1. Load from Firestore (Admin Panel overrides - Base)
+        // 1. Load from Cache (Fastest)
+        const cachedGallery = localStorage.getItem('inspiration_cache');
+        const cachedSpecials = localStorage.getItem('specials_cache');
+        const cacheTime = localStorage.getItem('cache_timestamp');
+        const isCacheFresh = cacheTime && (Date.now() - parseInt(cacheTime)) < 3600000; // 1 hour
+
+        if (isCacheFresh && cachedGallery && cachedSpecials) {
+          finalConfig.inspirationGallery = JSON.parse(cachedGallery);
+          finalConfig.specialProducts = JSON.parse(cachedSpecials);
+          console.log("✅ Data loaded from cache");
+        }
+
+        // 2. Load from Firestore (Admin Panel overrides - Base)
         const docSnap = await getDoc(configDocRef);
         if (docSnap.exists()) {
           finalConfig = { ...finalConfig, ...docSnap.data() };
           console.log("✅ Base config loaded from Firestore");
-        } else {
-          // Solo intentar inicializar si parece ser el admin, pero no fallar si no se puede
-          if (auth?.currentUser?.email === 'enmanueljose3431@gmail.com') {
-            try {
-              await setDoc(configDocRef, DEFAULT_CONFIG);
-              console.log("✅ Base config initialized in Firestore");
-            } catch (e) {
-              handleFirestoreError(e, OperationType.WRITE, "settings/appConfig");
-            }
+        } else if (user?.email === 'enmanueljose3431@gmail.com') {
+          try {
+            await setDoc(configDocRef, DEFAULT_CONFIG);
+            console.log("✅ Base config initialized in Firestore");
+          } catch (e) {
+            handleFirestoreError(e, OperationType.WRITE, "settings/appConfig");
           }
         }
 
-        // 2. Load from Google Sheets (Source of Truth - High Priority)
+        // 3. Load from Google Sheets (Source of Truth - High Priority)
         try {
           const sheetResponse = await fetch('/api/config');
           if (sheetResponse.ok) {
@@ -260,39 +286,70 @@ const App: React.FC = () => {
           console.log("Sheets config not available, using Firestore/Defaults");
         }
 
-        setConfig(finalConfig);
+        setConfig(prev => ({ 
+          ...prev, 
+          ...finalConfig, 
+          inspirationGallery: finalConfig.inspirationGallery || prev.inspirationGallery, 
+          specialProducts: finalConfig.specialProducts || prev.specialProducts 
+        }));
+
+        // 4. Update Inspiration and Special Products (One-time fetch to save quota)
+        // Only if cache is stale or missing
+        if (!isCacheFresh) {
+          const [inspSnap, specSnap] = await Promise.all([
+            getDocs(collection(db, "inspiration")),
+            getDocs(collection(db, "special_products"))
+          ]);
+
+          const gallery = inspSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+          const specials = specSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+
+          if (gallery.length > 0 || specials.length > 0) {
+            const newGallery = gallery.length > 0 ? gallery : finalConfig.inspirationGallery;
+            const newSpecials = specials.length > 0 ? specials : finalConfig.specialProducts;
+            
+            setConfig(prev => ({
+              ...prev,
+              inspirationGallery: newGallery,
+              specialProducts: newSpecials
+            }));
+
+            // Update Cache
+            localStorage.setItem('inspiration_cache', JSON.stringify(newGallery));
+            localStorage.setItem('specials_cache', JSON.stringify(newSpecials));
+            localStorage.setItem('cache_timestamp', Date.now().toString());
+          }
+        }
+
       } catch (e: any) {
         handleFirestoreError(e, OperationType.GET, "settings/appConfig");
       }
     };
     initConfig();
 
-    const unsubscribeConfig = onSnapshot(configDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        // Al recibir cambios de Firestore, volvemos a aplicar los datos de Sheets para que sigan mandando
-        const firestoreData = docSnap.data() as AppConfig;
-        // No sobreescribir la galería si ya tenemos datos de la colección dedicada
-        setConfig(prev => ({ ...prev, ...firestoreData, ...sheetConfigRef.current, inspirationGallery: prev.inspirationGallery }));
-      }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, "settings/appConfig");
-    });
-
-    // --- INSPIRATION GALLERY SYNC ---
-    const unsubscribeInspiration = onSnapshot(collection(db, "inspiration"), (snapshot) => {
-      const gallery = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-      if (gallery.length > 0) {
-        setConfig(prev => ({ ...prev, inspirationGallery: gallery }));
-      }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, "inspiration");
-    });
+    // Mantener config en tiempo real solo para el administrador
+    let unsubscribeConfig = () => {};
+    if (user?.email === 'enmanueljose3431@gmail.com') {
+      unsubscribeConfig = onSnapshot(configDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const firestoreData = docSnap.data() as AppConfig;
+          setConfig(prev => ({ 
+            ...prev, 
+            ...firestoreData, 
+            ...sheetConfigRef.current, 
+            inspirationGallery: prev.inspirationGallery,
+            specialProducts: prev.specialProducts 
+          }));
+        }
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, "settings/appConfig");
+      });
+    }
 
     return () => { 
       unsubscribeConfig(); 
-      unsubscribeInspiration();
     };
-  }, []);
+  }, [user]); // Add user to dependencies to re-run when user changes (admin login)
 
   // --- ORDERS SYNC (Admin Only) ---
   useEffect(() => {
@@ -301,11 +358,15 @@ const App: React.FC = () => {
       return;
     }
 
-    const unsubscribeOrders = onSnapshot(collection(db, "orders"), (snapshot) => {
+    const q = query(
+      collection(db, "orders"), 
+      orderBy("date", "desc"), 
+      limit(100)
+    );
+
+    const unsubscribeOrders = onSnapshot(q, (snapshot) => {
       const remoteOrders: Order[] = [];
       snapshot.forEach((doc) => { remoteOrders.push({ ...doc.data(), id: doc.id } as Order); });
-      // Ordenar por fecha descendente
-      remoteOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setOrders(remoteOrders);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, "orders");
@@ -379,17 +440,32 @@ const App: React.FC = () => {
     }
   }, [calculateTotal, state.totalPrice]);
 
+  const saveConfigTimeoutRef = useRef<any>(null);
+  const lastSavedConfigRef = useRef<string>("");
+
   const handleUpdateConfig = async (newConfig: AppConfig) => {
     setConfig(newConfig);
-    try {
-      if (db) {
-        // Separamos la galería para no saturar el documento de configuración (límite 1MB)
-        const { inspirationGallery: _ig, ...configToSave } = newConfig;
-        await setDoc(doc(db, "settings", "appConfig"), configToSave);
-      }
-    } catch (e) {
-      handleFirestoreError(e, OperationType.WRITE, "settings/appConfig");
+    
+    if (saveConfigTimeoutRef.current) {
+      clearTimeout(saveConfigTimeoutRef.current);
     }
+
+    saveConfigTimeoutRef.current = setTimeout(async () => {
+      try {
+        if (db) {
+          // Separamos la galería y los productos especiales para no saturar el documento de configuración (límite 1MB)
+          const { inspirationGallery: _ig, specialProducts: _sp, ...configToSave } = newConfig;
+          const configStr = JSON.stringify(configToSave);
+          
+          if (configStr !== lastSavedConfigRef.current) {
+            await setDoc(doc(db, "settings", "appConfig"), configToSave);
+            lastSavedConfigRef.current = configStr;
+          }
+        }
+      } catch (e) {
+        handleFirestoreError(e, OperationType.WRITE, "settings/appConfig");
+      }
+    }, 1500); // Slightly longer debounce
   };
 
   const handleRefreshFromSheets = async () => {
@@ -402,7 +478,10 @@ const App: React.FC = () => {
           const merged = { ...config, ...sData };
           setConfig(merged);
           try {
-            if (db) await setDoc(doc(db, "settings", "appConfig"), merged);
+            if (db) {
+              const { inspirationGallery: _ig, specialProducts: _sp, ...configToSave } = merged;
+              await setDoc(doc(db, "settings", "appConfig"), configToSave);
+            }
           } catch (e) {
             handleFirestoreError(e, OperationType.WRITE, "settings/appConfig");
           }
@@ -587,6 +666,8 @@ const App: React.FC = () => {
           onClose={() => setIsSpecialProductsOpen(false)} 
           products={config.specialProducts || []} 
           onAddToCart={handleAddSpecialProduct}
+          onRemoveFromCart={handleDecreaseSpecialProduct}
+          specialItems={state.specialItems}
         />
         <ChatAssistant 
           config={config} 

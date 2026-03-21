@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, addDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, addDoc, limit, orderBy } from 'firebase/firestore';
 import { Order, AppConfig } from '../types';
 
 interface UserDashboardProps {
@@ -15,6 +15,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ config, onExit }) => {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showProof, setShowProof] = useState<string | null>(null);
+
+  const [statusMessage, setStatusMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
   const canModify = (deliveryDate: string | undefined) => {
     if (!deliveryDate) return false;
@@ -50,7 +52,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ config, onExit }) => {
     if (!editingOrder || !auth.currentUser) return;
 
     if (!canModify(editingOrder.deliveryDate)) {
-      alert('Los pedidos solo pueden modificarse con al menos 3 días de anticipación.');
+      setStatusMessage({ text: 'Los pedidos solo pueden modificarse con al menos 3 días de anticipación.', type: 'error' });
       return;
     }
 
@@ -96,18 +98,27 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ config, onExit }) => {
       setEditingOrder(null);
     } catch (err) {
       console.error('Error updating order:', err);
-      alert('Error al actualizar el pedido');
+      setStatusMessage({ text: 'Error al actualizar el pedido', type: 'error' });
     } finally {
       setIsSaving(false);
     }
   };
 
   useEffect(() => {
+    if (statusMessage) {
+      const timer = setTimeout(() => setStatusMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [statusMessage]);
+
+  useEffect(() => {
     if (!auth.currentUser) return;
 
     const q = query(
       collection(db, "orders"),
-      where("userId", "==", auth.currentUser.uid)
+      where("userId", "==", auth.currentUser.uid),
+      orderBy("date", "desc"),
+      limit(20)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -128,6 +139,13 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ config, onExit }) => {
   return (
     <div className="h-full overflow-y-auto no-scrollbar">
       <div className="max-w-4xl mx-auto p-4 md:p-8">
+      {statusMessage && (
+        <div className={`fixed top-4 right-4 z-[400] px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl animate-fade-in ${
+          statusMessage.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        }`}>
+          {statusMessage.text}
+        </div>
+      )}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h2 className="font-display text-3xl text-primary">Mis Pedidos</h2>
